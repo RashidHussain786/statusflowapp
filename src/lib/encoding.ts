@@ -51,14 +51,30 @@ export function decodeStatus(fragment: string): StatusPayload | null {
  * Extract status URLs from text (one per line)
  */
 export function extractStatusUrls(text: string): string[] {
+  const isClient = typeof window !== 'undefined';
+
   return text
     .split('\n')
     .map(line => line.trim())
-    .filter(line => line.startsWith(window.location.origin) && line.includes(URL_PREFIX))
+    .filter(line => {
+      if (!line) return false;
+      // If server-side, skip origin check to allow parsing (or we could return false depends on intent)
+      // Usually better to allow parsing if it looks like a valid URL or just skip if we need full URL
+      const hasPrefix = line.includes(URL_PREFIX);
+      if (!isClient) return hasPrefix;
+      return line.startsWith(window.location.origin) && hasPrefix;
+    })
     .map(line => {
-      // Extract just the fragment part
-      const url = new URL(line);
-      return url.hash;
+      try {
+        // Handle both relative and absolute URLs
+        const urlString = line.startsWith('http') ? line : `http://localhost${line.startsWith('/') ? '' : '/'}${line}`;
+        const url = new URL(urlString);
+        return url.hash;
+      } catch {
+        // If parsing fails but it has the prefix, maybe it's just the fragment?
+        if (line.startsWith(URL_PREFIX)) return line;
+        return '';
+      }
     })
     .filter(hash => hash.length > 0);
 }

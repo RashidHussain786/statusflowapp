@@ -118,13 +118,13 @@ export function TeamAggregationForm() {
     }
   }, [generateOutput]);
 
-  // Convert HTML to email-friendly formatted text
-  const htmlToPlainText = useMemo(() => {
-    if (!editableContent) return '';
+  // Convert HTML to email-friendly formatted text (Client-side only)
+  const getPlainText = (html: string): string => {
+    if (typeof document === 'undefined') return '';
 
     // Create a temporary DOM element to parse HTML
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = editableContent;
+    tempDiv.innerHTML = html;
 
     // Convert structured HTML to readable plain text
     const convertToText = (element: Element, indent = ''): string => {
@@ -210,7 +210,7 @@ export function TeamAggregationForm() {
       .replace(/\n{3,}/g, '\n\n') // Replace 3+ consecutive newlines with just 2
       .replace(/^\n+/, '') // Remove leading newlines
       .replace(/\n+$/, ''); // Remove trailing newlines
-  }, [editableContent]);
+  };
 
   const copyToClipboard = async () => {
     try {
@@ -236,7 +236,7 @@ export function TeamAggregationForm() {
       }
 
       // Fallback: use the editor's text content
-      const textToCopy = editorRef.current ? editorRef.current.getText() : htmlToPlainText;
+      const textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
       const textArea = document.createElement('textarea');
       textArea.value = textToCopy;
       textArea.style.position = 'fixed';
@@ -257,7 +257,7 @@ export function TeamAggregationForm() {
       console.error('Copy error:', err);
       // Last resort: try the modern clipboard API
       try {
-        const textToCopy = editorRef.current ? editorRef.current.getText() : htmlToPlainText;
+        const textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
         await navigator.clipboard.writeText(textToCopy);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
