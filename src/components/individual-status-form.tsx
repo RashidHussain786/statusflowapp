@@ -1,0 +1,274 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Plus, Trash2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { RichTextEditor } from './rich-text-editor';
+import { encodeStatus, validatePayload } from '@/lib/encoding';
+import { StatusPayload, AppStatus } from '@/lib/types';
+
+export function IndividualStatusForm() {
+  const [name, setName] = useState('');
+  const [date, setDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [apps, setApps] = useState<AppStatus[]>([{ app: '', content: '' }]);
+  const [expandedApps, setExpandedApps] = useState<Set<number>>(new Set([0]));
+  const [generatedUrl, setGeneratedUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+
+  // Generate URL when form changes
+  useEffect(() => {
+    const hasValidApps = apps.some(app => app.app.trim() && app.content.trim());
+
+    if (name.trim() && hasValidApps) {
+      const validApps = apps.filter(app => app.app.trim() && app.content.trim());
+
+      if (validApps.length === 0) {
+        setGeneratedUrl('');
+        return;
+      }
+
+      const payload: StatusPayload = {
+        v: 1,
+        name: name.trim(),
+        date,
+        apps: validApps,
+      };
+
+      const validation = validatePayload(payload);
+      if (!validation.valid) {
+        setError(validation.error || 'Invalid payload');
+        setGeneratedUrl('');
+        return;
+      }
+
+      setError('');
+      const fragment = encodeStatus(payload);
+      const fullUrl = `${window.location.origin}${window.location.pathname}${fragment}`;
+      setGeneratedUrl(fullUrl);
+    } else {
+      setGeneratedUrl('');
+    }
+  }, [name, date, apps]);
+
+  const addApp = () => {
+    const newIndex = apps.length;
+    setApps([...apps, { app: '', content: '' }]);
+    // Collapse all previous apps and expand only the new one
+    setExpandedApps(new Set([newIndex]));
+  };
+
+  const removeApp = (index: number) => {
+    if (apps.length > 1) {
+      setApps(apps.filter((_, i) => i !== index));
+      const newExpanded = new Set(expandedApps);
+      newExpanded.delete(index);
+      const updatedExpanded = new Set<number>();
+      newExpanded.forEach(i => {
+        if (i > index) {
+          updatedExpanded.add(i - 1);
+        } else if (i < index) {
+          updatedExpanded.add(i);
+        }
+      });
+      setExpandedApps(updatedExpanded);
+    }
+  };
+
+  const toggleAppExpansion = (index: number) => {
+    const newExpanded = new Set(expandedApps);
+    if (newExpanded.has(index)) {
+      // If currently expanded, collapse it
+      newExpanded.delete(index);
+    } else {
+      // If not expanded, collapse all and expand only this one
+      newExpanded.clear();
+      newExpanded.add(index);
+    }
+    setExpandedApps(newExpanded);
+  };
+
+  const updateApp = (index: number, field: keyof AppStatus, value: string) => {
+    const newApps = [...apps];
+    newApps[index] = { ...newApps[index], [field]: value };
+    setApps(newApps);
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = generatedUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const isValid = name.trim() && apps.some(app => app.app.trim() && app.content.trim()) && !error;
+
+  return (
+    <div className="max-w-none">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
+          Create Your Status Link
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Generate a shareable link containing your daily status updates. No account required.
+        </p>
+      </div>
+
+      {/* Applications Section - Full Width */}
+      <div className="bg-card border border-border rounded-lg p-6 shadow-sm mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-card-foreground">Applications</h2>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                id="name-inline"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your Name *"
+                className={`px-3 py-1.5 text-sm border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${!name.trim()
+                  ? 'border-destructive focus:ring-destructive/20'
+                  : 'border-input focus:ring-ring'
+                  }`}
+                required
+              />
+              {!name.trim() && (
+                <span className="absolute -top-1 -right-1 text-xs text-destructive font-medium">*</span>
+              )}
+            </div>
+            <input
+              id="date-inline"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+            />
+            <button
+              onClick={copyToClipboard}
+              disabled={!generatedUrl || !name.trim()}
+              title={!name.trim() ? 'Please enter your name first' : generatedUrl ? 'Copy shareable link' : 'Complete the form to generate link'}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${!generatedUrl || !name.trim()
+                ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer'
+                }`}
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Copied!' : 'Copy Link'}
+            </button>
+            <button
+              type="button"
+              onClick={addApp}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add Application
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {apps.map((app, index) => {
+            const isExpanded = expandedApps.has(index);
+            return (
+              <div key={index} className="border border-border rounded-lg bg-muted/30 overflow-hidden">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleAppExpansion(index)}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                      title={isExpanded ? "Collapse application" : "Expand application"}
+                    >
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
+                    <input
+                      type="text"
+                      value={app.app}
+                      onChange={(e) => updateApp(index, 'app', e.target.value)}
+                      placeholder="Application name (e.g., Payments, Auth, Dashboard)"
+                      className="flex-1 px-3 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                    />
+                  </div>
+                  {apps.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeApp(index)}
+                      className="ml-3 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      title="Remove application"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {isExpanded && (
+                  <div className="px-4 pb-4">
+                    <RichTextEditor
+                      value={app.content}
+                      onChange={(value) => updateApp(index, 'content', value)}
+                      placeholder="Describe your updates for this application..."
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Row 3: Privacy & Security - Full Width */}
+      <div className="bg-linear-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-6">
+        <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+          <span className="text-lg">🔒</span>
+          Privacy & Security
+        </h3>
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li className="flex items-center gap-2">
+            <span className="text-green-600">✓</span>
+            <span>No backend storage required</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="text-green-600">✓</span>
+            <span>No account or login needed</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="text-green-600">✓</span>
+            <span>No analytics or tracking</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="text-green-600">✓</span>
+            <span>Works completely offline</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="text-green-600">✓</span>
+            <span>Data stays in URLs only</span>
+          </li>
+        </ul>
+        <div className="mt-4 p-3 bg-muted/50 rounded-md">
+          <p className="text-xs text-muted-foreground">
+            <strong>Pro tip:</strong> Open DevTools → Network tab → you'll see zero requests. Your data never leaves your browser.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

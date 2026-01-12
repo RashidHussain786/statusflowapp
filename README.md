@@ -1,36 +1,173 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StatusFlowApp - Privacy-First Team Status Generator
 
-## Getting Started
+A 100% frontend, privacy-first web tool for creating and merging team status updates. All data lives only inside URL fragments - no backend, no login, no storage.
 
-First, run the development server:
+## 🚀 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Individual Contributors
+- Create shareable status links with rich text formatting
+- Support for multiple applications per person
+- Rich text formatting (bold, italic, underline, bullet lists, numbered lists)
+- URL-encoded data with LZ compression
+- Character limits and validation
+
+### Team Leads
+- Aggregate multiple individual status links
+- Two merge modes: Application-wise and Person-wise
+- Formatted output generation
+- Copy to clipboard and download functionality
+
+### Privacy & Security
+- ✅ No backend storage
+- ✅ No login required
+- ✅ No analytics or tracking
+- ✅ Works offline after load
+- ✅ Data never leaves your browser
+- ✅ URL fragment-based storage (#s=...)
+
+## 🛠 Tech Stack
+
+- **Framework**: Next.js 16 with App Router
+- **Styling**: Tailwind CSS v4 with custom theme system
+- **Rich Text Editor**: TipTap React (pure HTML output)
+- **Compression**: LZ-string for URL encoding
+- **Icons**: Lucide React
+- **TypeScript**: Full type safety
+
+## 📁 Project Structure
+
+```
+src/
+├── app/
+│   ├── globals.css          # Global styles with theme system
+│   ├── layout.tsx           # Root layout with theme provider
+│   └── page.tsx             # Main page with tab navigation
+├── components/
+│   ├── main-nav.tsx         # Navigation between flows
+│   ├── theme-provider.tsx   # Theme context and toggle
+│   ├── theme-toggle.tsx     # Theme toggle button
+│   ├── individual-status-form.tsx  # Status creation form
+│   ├── team-aggregation-form.tsx   # Team aggregation form
+│   └── rich-text-editor.tsx        # Rich text editor component
+└── lib/
+    ├── types.ts             # TypeScript type definitions
+    └── encoding.ts          # URL encoding/decoding utilities
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎯 User Flows
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Flow 1: Individual Status Creation
+1. Enter name and date
+2. Add one or more applications
+3. Write status updates with rich formatting
+4. Generate and copy shareable link
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Flow 2: Team Status Aggregation
+1. Paste multiple status links (one per line)
+2. Choose merge mode (app-wise vs person-wise)
+3. Generate formatted team report
+4. Copy or download the final output
 
-## Learn More
+## 🔧 Development
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Install dependencies
+npm install
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Start development server
+npm run dev
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Build for production
+npm run build
 
-## Deploy on Vercel
+# Start production server
+npm start
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Run linting
+npm run lint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📊 Data Model
+
+### StatusPayload (URL-encoded)
+```typescript
+{
+  v: 1,              // schema version
+  name: string,      // "Rashid"
+  date: string,      // "2026-01-08"
+  apps: AppStatus[]  // multiple apps
+}
+```
+
+### AppStatus
+```typescript
+{
+  app: string;       // "Payments"
+  content: string;   // HTML content from TipTap rich text editor
+}
+```
+
+## 🔄 Merge Modes
+
+### Application-wise (Default)
+```html
+<h3>Payments Application:</h3>
+<ul>
+  <li><strong>Rashid:</strong> UPI validation fix deployed</li>
+  <li><strong>Aman:</strong> Load testing completed</li>
+</ul>
+
+<h3>Auth Service:</h3>
+<ul>
+  <li><strong>Rashid:</strong> Token refresh bug fixed</li>
+</ul>
+```
+
+### Person-wise
+```html
+<h3>Rashid:</h3>
+<ul>
+  <li><strong>Payments:</strong> UPI validation fix deployed</li>
+  <li><strong>Auth:</strong> Token refresh bug fixed</li>
+</ul>
+
+<h3>Aman:</h3>
+<ul>
+  <li><strong>Payments:</strong> Load testing completed</li>
+</ul>
+```
+
+## 📏 Validation Rules
+
+- Max content per app: 600 characters (based on plain text length)
+- Max encoded URL size: 1,800 characters
+- One payload per person per day
+- Rich text formatting: HTML output with bold, italic, underline, strikethrough, bullet lists, numbered lists
+
+## 🌙 Theme System
+
+- Light/Dark mode toggle
+- System preference detection
+- Persistent theme storage
+- CSS custom properties for theming
+
+## 🚀 Deployment
+
+Deploy to any static hosting service (Vercel, Netlify, etc.) since it's 100% frontend.
+
+```bash
+npm run build
+# Deploy the .next/static and .next/serverless folders
+```
+
+## 🤝 Contributing
+
+This is a focused MVP implementation. For enhancements, consider:
+- Additional rich text formatting options
+- Better mobile responsiveness
+- Export to different formats (PDF, etc.)
+- Status history/timeline features
+
+## 📄 License
+
+MIT License - feel free to use and modify for your own privacy-first tools.
