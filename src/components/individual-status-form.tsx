@@ -18,7 +18,6 @@ export function IndividualStatusForm() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
-  // Generate URL when form changes
   useEffect(() => {
     const hasValidApps = apps.some(app => app.app.trim() && app.content.trim());
 
@@ -56,7 +55,6 @@ export function IndividualStatusForm() {
   const addApp = () => {
     const newIndex = apps.length;
     setApps([...apps, { app: '', content: '' }]);
-    // Collapse all previous apps and expand only the new one
     setExpandedApps(new Set([newIndex]));
   };
 
@@ -80,10 +78,8 @@ export function IndividualStatusForm() {
   const toggleAppExpansion = (index: number) => {
     const newExpanded = new Set(expandedApps);
     if (newExpanded.has(index)) {
-      // If currently expanded, collapse it
       newExpanded.delete(index);
     } else {
-      // If not expanded, collapse all and expand only this one
       newExpanded.clear();
       newExpanded.add(index);
     }
@@ -102,7 +98,6 @@ export function IndividualStatusForm() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = generatedUrl;
       document.body.appendChild(textArea);
@@ -118,20 +113,19 @@ export function IndividualStatusForm() {
 
   return (
     <div className="max-w-none">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
+      <div className="mb-6 2xl:mb-8">
+        <h1 className="text-2xl 2xl:text-3xl font-bold tracking-tight text-foreground mb-2">
           Create Your Status Link
         </h1>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-base 2xl:text-lg">
           Generate a shareable link containing your daily status updates. No account required.
         </p>
       </div>
 
-      {/* Applications Section - Full Width */}
-      <div className="bg-card border border-border rounded-lg p-6 shadow-sm mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-card-foreground">Applications</h2>
+
+      <div className="bg-card border border-border rounded-lg p-4 2xl:p-6 shadow-sm mb-6 2xl:mb-8">
+        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+          <h2 className="text-base 2xl:text-lg font-semibold text-card-foreground">Applications</h2>
           <div className="flex items-center gap-3">
             <div className="relative">
               <input
@@ -235,7 +229,7 @@ export function IndividualStatusForm() {
         </div>
       </div>
 
-      {/* Row 3: Privacy & Security - Full Width */}
+
       <div className="bg-linear-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-6">
         <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
           <span className="text-lg">🔒</span>

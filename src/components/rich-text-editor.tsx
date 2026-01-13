@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Bold, Italic, List, ListOrdered, Strikethrough, Underline } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -24,11 +24,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   placeholder = "Enter your status update...",
   maxLength = 600
 }, ref) => {
-  // Note: Editor starts empty to avoid HTML parsing issues
-
-  // Memoize the onUpdate callback to prevent unnecessary re-renders
   const handleUpdate = useCallback(({ editor }: any) => {
-    // Defer the state update to avoid calling setState during render
     setTimeout(() => {
       const html = editor.getHTML();
       onChange(html);
@@ -53,10 +49,8 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
     },
   });
 
-  // Update editor content when value prop changes
   useEffect(() => {
     if (editor && !editor.isDestroyed && value) {
-      // Set content whenever value changes (not just when editor is empty)
       const currentContent = editor.getHTML();
       if (currentContent !== value) {
         editor.commands.setContent(value);
@@ -64,7 +58,6 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
     }
   }, [editor, value]);
 
-  // Expose getText method via ref
   useImperativeHandle(ref, () => ({
     getText: () => editor?.getText() || ''
   }), [editor]);
@@ -76,7 +69,6 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
 
   return (
     <div className="space-y-3">
-      {/* Toolbar */}
       <div className="flex items-center gap-1 p-3 border border-input rounded-t-lg bg-muted/50">
         <button
           type="button"
@@ -150,7 +142,6 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         </div>
       </div>
 
-      {/* Editor Area */}
       <div className="border-x border-b border-input rounded-b-lg overflow-hidden">
         <EditorContent
           editor={editor}
@@ -158,7 +149,6 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         />
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
           WYSIWYG rich text editor with HTML formatting.

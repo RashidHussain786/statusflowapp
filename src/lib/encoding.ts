@@ -35,7 +35,6 @@ export function decodeStatus(fragment: string): StatusPayload | null {
 
     const payload = JSON.parse(jsonString) as StatusPayload;
 
-    // Basic validation
     if (payload.v !== 1 || !payload.name || !payload.date || !Array.isArray(payload.apps)) {
       return null;
     }
@@ -58,20 +57,16 @@ export function extractStatusUrls(text: string): string[] {
     .map(line => line.trim())
     .filter(line => {
       if (!line) return false;
-      // If server-side, skip origin check to allow parsing (or we could return false depends on intent)
-      // Usually better to allow parsing if it looks like a valid URL or just skip if we need full URL
       const hasPrefix = line.includes(URL_PREFIX);
       if (!isClient) return hasPrefix;
       return line.startsWith(window.location.origin) && hasPrefix;
     })
     .map(line => {
       try {
-        // Handle both relative and absolute URLs
         const urlString = line.startsWith('http') ? line : `http://localhost${line.startsWith('/') ? '' : '/'}${line}`;
         const url = new URL(urlString);
         return url.hash;
       } catch {
-        // If parsing fails but it has the prefix, maybe it's just the fragment?
         if (line.startsWith(URL_PREFIX)) return line;
         return '';
       }
@@ -91,7 +86,6 @@ export function decodeMultipleStatuses(fragments: string[]): NormalizedEntry[] {
     if (!payload) continue;
 
     for (const app of payload.apps) {
-      // Use case-insensitive key for deduplication
       const key = `${payload.name.toLowerCase().trim()}-${app.app.toLowerCase().trim()}-${payload.date}`;
       if (seen.has(key)) continue;
 
@@ -111,7 +105,6 @@ export function decodeMultipleStatuses(fragments: string[]): NormalizedEntry[] {
  * Validate status payload size constraints
  */
 export function validatePayload(payload: StatusPayload): { valid: boolean; error?: string } {
-  // Check total encoded size
   try {
     const encoded = encodeStatus(payload);
     if (encoded.length > 1800) {
@@ -121,7 +114,6 @@ export function validatePayload(payload: StatusPayload): { valid: boolean; error
     return { valid: false, error: 'Encoding failed' };
   }
 
-  // Check individual app content sizes
   for (const app of payload.apps) {
     if (app.content.length > 600) {
       return { valid: false, error: `Content for ${app.app} too long (max 600 characters)` };
