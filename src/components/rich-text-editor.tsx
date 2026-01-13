@@ -12,6 +12,7 @@ interface RichTextEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   currentUrlLength?: number;
+  urlCount?: number;
 }
 
 export interface EditorRef {
@@ -22,7 +23,8 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   value,
   onChange,
   placeholder = "Enter your status update...",
-  currentUrlLength
+  currentUrlLength,
+  urlCount = 1
 }, ref) => {
   const handleUpdate = useCallback(({ editor }: any) => {
     setTimeout(() => {
@@ -139,9 +141,15 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         </button>
         <div className="ml-auto text-xs text-muted-foreground font-medium">
           {currentUrlLength !== undefined ? (
-            <span className={currentUrlLength > 1800 ? 'text-destructive' : currentUrlLength > 1600 ? 'text-amber-600' : ''}>
-              URL: {currentUrlLength}/1800
-            </span>
+            urlCount > 1 ? (
+              <span className="text-blue-600">
+                {urlCount} URLs: {currentUrlLength}/{urlCount * 1800}
+              </span>
+            ) : (
+              <span className={currentUrlLength > 1600 ? 'text-amber-600' : ''}>
+                URL: {currentUrlLength}/1800
+              </span>
+            )
           ) : (
             `${editor?.getHTML().length || 0} chars (HTML)`
           )}

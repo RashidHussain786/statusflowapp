@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
-import { encodeStatus, validatePayload } from '@/lib/encoding';
+import { encodeStatus, validateAndSplitPayload } from '@/lib/encoding';
 import { StatusPayload, AppStatus } from '@/lib/types';
 
 export function IndividualStatusForm() {
@@ -14,7 +14,7 @@ export function IndividualStatusForm() {
   });
   const [apps, setApps] = useState<AppStatus[]>([{ app: '', content: '' }]);
   const [expandedApps, setExpandedApps] = useState<Set<number>>(new Set([0]));
-  const [generatedUrl, setGeneratedUrl] = useState('');
+  const [generatedUrls, setGeneratedUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [currentUrlLength, setCurrentUrlLength] = useState<number>(0);
@@ -26,7 +26,7 @@ export function IndividualStatusForm() {
       const validApps = apps.filter(app => app.app.trim() && app.content.trim());
 
       if (validApps.length === 0) {
-        setGeneratedUrl('');
+        setGeneratedUrls([]);
         return;
       }
 
@@ -37,21 +37,26 @@ export function IndividualStatusForm() {
         apps: validApps,
       };
 
-      const fragment = encodeStatus(payload);
-      const fullUrl = `${window.location.origin}${window.location.pathname}${fragment}`;
-      setCurrentUrlLength(fullUrl.length);
-
-      const validation = validatePayload(payload);
-      if (!validation.valid) {
-        setError(validation.error || 'Invalid payload');
-        setGeneratedUrl('');
+      const result = validateAndSplitPayload(payload);
+      if (result.error) {
+        setError(result.error);
+        setGeneratedUrls([]);
+        setCurrentUrlLength(0);
         return;
       }
 
       setError('');
-      setGeneratedUrl(fullUrl);
+      const fullUrls = result.urls.map(fragment =>
+        `${window.location.origin}${window.location.pathname}${fragment}`
+      );
+
+      // Calculate total length across all URLs
+      const totalLength = fullUrls.reduce((sum, url) => sum + url.length, 0);
+      setCurrentUrlLength(totalLength);
+
+      setGeneratedUrls(fullUrls);
     } else {
-      setGeneratedUrl('');
+      setGeneratedUrls([]);
       setCurrentUrlLength(0);
     }
   }, [name, date, apps]);
@@ -97,13 +102,17 @@ export function IndividualStatusForm() {
   };
 
   const copyToClipboard = async () => {
+    const contentToCopy = generatedUrls.length === 1
+      ? generatedUrls[0]
+      : generatedUrls.join('\n\n');
+
     try {
-      await navigator.clipboard.writeText(generatedUrl);
+      await navigator.clipboard.writeText(contentToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       const textArea = document.createElement('textarea');
-      textArea.value = generatedUrl;
+      textArea.value = contentToCopy;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
@@ -157,15 +166,15 @@ export function IndividualStatusForm() {
             />
             <button
               onClick={copyToClipboard}
-              disabled={!generatedUrl || !name.trim()}
-              title={!name.trim() ? 'Please enter your name first' : generatedUrl ? 'Copy shareable link' : 'Complete the form to generate link'}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${!generatedUrl || !name.trim()
+              disabled={generatedUrls.length === 0 || !name.trim()}
+              title={!name.trim() ? 'Please enter your name first' : generatedUrls.length > 0 ? `Copy ${generatedUrls.length > 1 ? 'all shareable links' : 'shareable link'}` : 'Complete the form to generate link'}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${generatedUrls.length === 0 || !name.trim()
                 ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer'
                 }`}
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied!' : 'Copy Link'}
+              {copied ? 'Copied!' : generatedUrls.length > 1 ? `Copy All Links (${generatedUrls.length})` : 'Copy Link'}
             </button>
             <button
               type="button"
@@ -225,6 +234,7 @@ export function IndividualStatusForm() {
                       onChange={(value) => updateApp(index, 'content', value)}
                       placeholder="Describe your updates for this application..."
                       currentUrlLength={currentUrlLength}
+                      urlCount={generatedUrls.length}
                     />
                   </div>
                 )}
