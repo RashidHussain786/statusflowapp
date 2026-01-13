@@ -114,11 +114,5 @@ export function validatePayload(payload: StatusPayload): { valid: boolean; error
     return { valid: false, error: 'Encoding failed' };
   }
 
-  for (const app of payload.apps) {
-    if (app.content.length > 600) {
-      return { valid: false, error: `Content for ${app.app} too long (max 600 characters)` };
-    }
-  }
-
   return { valid: true };
 }

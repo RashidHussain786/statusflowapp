@@ -17,6 +17,7 @@ export function IndividualStatusForm() {
   const [generatedUrl, setGeneratedUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [currentUrlLength, setCurrentUrlLength] = useState<number>(0);
 
   useEffect(() => {
     const hasValidApps = apps.some(app => app.app.trim() && app.content.trim());
@@ -36,6 +37,10 @@ export function IndividualStatusForm() {
         apps: validApps,
       };
 
+      const fragment = encodeStatus(payload);
+      const fullUrl = `${window.location.origin}${window.location.pathname}${fragment}`;
+      setCurrentUrlLength(fullUrl.length);
+
       const validation = validatePayload(payload);
       if (!validation.valid) {
         setError(validation.error || 'Invalid payload');
@@ -44,11 +49,10 @@ export function IndividualStatusForm() {
       }
 
       setError('');
-      const fragment = encodeStatus(payload);
-      const fullUrl = `${window.location.origin}${window.location.pathname}${fragment}`;
       setGeneratedUrl(fullUrl);
     } else {
       setGeneratedUrl('');
+      setCurrentUrlLength(0);
     }
   }, [name, date, apps]);
 
@@ -220,6 +224,7 @@ export function IndividualStatusForm() {
                       value={app.content}
                       onChange={(value) => updateApp(index, 'content', value)}
                       placeholder="Describe your updates for this application..."
+                      currentUrlLength={currentUrlLength}
                     />
                   </div>
                 )}

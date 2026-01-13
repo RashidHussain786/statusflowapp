@@ -11,7 +11,7 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  maxLength?: number;
+  currentUrlLength?: number;
 }
 
 export interface EditorRef {
@@ -22,7 +22,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   value,
   onChange,
   placeholder = "Enter your status update...",
-  maxLength = 600
+  currentUrlLength
 }, ref) => {
   const handleUpdate = useCallback(({ editor }: any) => {
     setTimeout(() => {
@@ -138,7 +138,13 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
           <ListOrdered className="h-4 w-4" />
         </button>
         <div className="ml-auto text-xs text-muted-foreground font-medium">
-          {editor?.getText().length || 0}/{maxLength}
+          {currentUrlLength !== undefined ? (
+            <span className={currentUrlLength > 1800 ? 'text-destructive' : currentUrlLength > 1600 ? 'text-amber-600' : ''}>
+              URL: {currentUrlLength}/1800
+            </span>
+          ) : (
+            `${editor?.getHTML().length || 0} chars (HTML)`
+          )}
         </div>
       </div>
 
@@ -153,11 +159,6 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         <p className="text-xs text-muted-foreground">
           WYSIWYG rich text editor with HTML formatting.
         </p>
-        {(editor?.getText().length || 0) > maxLength * 0.8 && (
-          <p className={`text-xs font-medium ${(editor?.getText().length || 0) > maxLength ? 'text-destructive' : 'text-amber-600'}`}>
-            {maxLength - (editor?.getText().length || 0)} characters remaining
-          </p>
-        )}
       </div>
     </div>
   );
