@@ -22,12 +22,11 @@ export function TeamAggregationForm() {
     const entries = decodeMultipleStatuses(fragments);
     const invalidLines = urlsText.split('\n').filter(line => line.trim() && !line.includes(URL_PREFIX));
 
-    // Extract unique app names for dropdown, handling case-sensitivity
     const appMap = new Map<string, string>();
     entries.forEach(entry => {
       const lower = entry.app.toLowerCase().trim();
       if (!appMap.has(lower)) {
-        appMap.set(lower, entry.app); // Keep the first occurrence's casing for display
+        appMap.set(lower, entry.app);
       }
     });
     const uniqueApps = Array.from(appMap.values()).sort((a, b) => a.localeCompare(b));
@@ -35,20 +34,16 @@ export function TeamAggregationForm() {
     return { fragments, entries, invalidLines, uniqueApps };
   }, [urlsText]);
 
-  // Clean content HTML by preserving list structures and formatting
   const cleanContentHtml = (html: string): string => {
     if (!html) return '';
 
-    // Preserve list structures but remove empty paragraphs and clean up
     let cleaned = html
-      .replace(/<\/?p[^>]*>/gi, '') // Remove p tags but keep content
-      .replace(/<br\s*\/?>/gi, '\n') // Convert br to newlines
+      .replace(/<\/?p[^>]*>/gi, '')
+      .replace(/<br\s*\/?>/gi, '\n')
       .trim();
 
-    // If the result is just whitespace or empty, return empty string
     if (!cleaned.trim()) return '';
 
-    // If there's no HTML structure, wrap in a span to preserve inline formatting
     if (!cleaned.includes('<') && !cleaned.includes('>')) {
       cleaned = `<span>${cleaned}</span>`;
     }
@@ -61,7 +56,6 @@ export function TeamAggregationForm() {
 
     if (entries.length === 0) return '';
 
-    // Filter entries by selected app if not "all" (case-insensitive)
     const filteredEntries = selectedApp === 'all'
       ? entries
       : entries.filter(entry => entry.app.toLowerCase().trim() === selectedApp.toLowerCase().trim());
@@ -69,10 +63,8 @@ export function TeamAggregationForm() {
     if (filteredEntries.length === 0) return '';
 
     if (mergeMode === 'app-wise') {
-      // Group by app, then by person
       const appGroups = filteredEntries.reduce((acc, entry) => {
         const appKey = entry.app.trim();
-        // Find if we already have this app (case-insensitive)
         const canonicalKey = Object.keys(acc).find(
           key => key.toLowerCase() === appKey.toLowerCase()
         ) || appKey;
@@ -92,7 +84,6 @@ export function TeamAggregationForm() {
         })
         .join('');
     } else {
-      // Group by person, then by app
       const personGroups = filteredEntries.reduce((acc, entry) => {
         if (!acc[entry.name]) acc[entry.name] = [];
         acc[entry.name].push(entry);
@@ -111,22 +102,18 @@ export function TeamAggregationForm() {
     }
   }, [processedData, mergeMode, selectedApp]);
 
-  // Update editable content whenever generated output changes
   useEffect(() => {
     if (generateOutput) {
       setEditableContent(generateOutput);
     }
   }, [generateOutput]);
 
-  // Convert HTML to email-friendly formatted text (Client-side only)
   const getPlainText = (html: string): string => {
     if (typeof document === 'undefined') return '';
 
-    // Create a temporary DOM element to parse HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
 
-    // Convert structured HTML to readable plain text
     const convertToText = (element: Element, indent = ''): string => {
       let result = '';
 
@@ -137,17 +124,14 @@ export function TeamAggregationForm() {
             result += `\n${indent}${text}:\n`;
           }
         } else if (child.tagName === 'UL') {
-          // Process list items - for nested status lists, don't add extra bullets
           for (const li of child.children) {
             if (li.tagName === 'LI') {
               result += convertToText(li, indent);
             }
           }
         } else if (child.tagName === 'LI') {
-          // Handle list items, checking if they contain nested lists
           const hasNestedList = child.querySelector('ul, ol');
           if (hasNestedList) {
-            // This LI contains a nested list (person's status updates)
             let personName = '';
             let statusList = '';
 
@@ -157,7 +141,6 @@ export function TeamAggregationForm() {
               } else if (liChild.tagName === 'UL' || liChild.tagName === 'OL') {
                 statusList = convertToText(liChild, indent);
               } else {
-                // Other content, might be additional text
                 const text = liChild.textContent?.trim();
                 if (text) {
                   personName += (personName ? ' ' : '') + text;
@@ -171,7 +154,6 @@ export function TeamAggregationForm() {
               result += statusList;
             }
           } else {
-            // Simple list item - convert to plain text line
             const itemText = convertToText(child, '').trim();
             if (itemText) {
               result += `${indent}${itemText}\n`;
@@ -193,7 +175,6 @@ export function TeamAggregationForm() {
             result += `*${text}* `;
           }
         } else {
-          // Recursively process other elements or get their text content
           const text = child.textContent?.trim();
           if (text) {
             result += `${indent}${text} `;
@@ -204,27 +185,23 @@ export function TeamAggregationForm() {
       return result;
     };
 
-    // Clean up excessive whitespace and empty lines
     return convertToText(tempDiv)
       .trim()
-      .replace(/\n{3,}/g, '\n\n') // Replace 3+ consecutive newlines with just 2
-      .replace(/^\n+/, '') // Remove leading newlines
-      .replace(/\n+$/, ''); // Remove trailing newlines
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\n+/, '')
+      .replace(/\n+$/, '');
   };
 
   const copyToClipboard = async () => {
     try {
-      // Try to programmatically select and copy from the editor element
       const editorElement = document.querySelector('[data-radix-editor-content]') as HTMLElement;
       if (editorElement) {
-        // Create a range to select all content
         const range = document.createRange();
         range.selectNodeContents(editorElement);
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
 
-        // Execute copy command
         const successful = document.execCommand('copy');
         selection?.removeAllRanges();
 
@@ -235,7 +212,6 @@ export function TeamAggregationForm() {
         }
       }
 
-      // Fallback: use the editor's text content
       const textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
       const textArea = document.createElement('textarea');
       textArea.value = textToCopy;
@@ -255,7 +231,6 @@ export function TeamAggregationForm() {
       }
     } catch (err) {
       console.error('Copy error:', err);
-      // Last resort: try the modern clipboard API
       try {
         const textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
         await navigator.clipboard.writeText(textToCopy);
@@ -284,19 +259,17 @@ export function TeamAggregationForm() {
 
   return (
     <div className="max-w-none">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
+      <div className="mb-6 2xl:mb-8">
+        <h1 className="text-2xl 2xl:text-3xl font-bold tracking-tight text-foreground mb-2">
           Generate Team Status Report
         </h1>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-base 2xl:text-lg">
           Combine multiple individual status links into a unified team report. Choose how to organize the information.
         </p>
       </div>
 
-      {/* URL Input Section - Top Row */}
-      <div className="bg-card border border-border rounded-lg p-6 shadow-sm mb-8">
-        <h2 className="text-lg font-semibold mb-4 text-card-foreground">Status Links</h2>
+      <div className="bg-card border border-border rounded-lg p-4 2xl:p-6 shadow-sm mb-6 2xl:mb-8">
+        <h2 className="text-base 2xl:text-lg font-semibold mb-3 2xl:mb-4 text-card-foreground">Status Links</h2>
         <div className="space-y-3">
           <textarea
             id="urls"
@@ -321,13 +294,11 @@ export function TeamAggregationForm() {
         </div>
       </div>
 
-      {/* Team Status Report - Second Row */}
-      <div className="bg-card border border-border rounded-lg p-6 shadow-sm mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-card-foreground">Team Status Report</h2>
+      <div className="bg-card border border-border rounded-lg p-4 2xl:p-6 shadow-sm mb-6 2xl:mb-8">
+        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+          <h2 className="text-base 2xl:text-lg font-semibold text-card-foreground">Team Status Report</h2>
           {hasOutput && (
             <div className="flex items-center gap-4">
-              {/* Report Organization Controls */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-foreground">View:</label>
@@ -369,7 +340,6 @@ export function TeamAggregationForm() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex gap-2">
                 <button
                   onClick={copyToClipboard}
@@ -397,7 +367,6 @@ export function TeamAggregationForm() {
               value={editableContent}
               onChange={setEditableContent}
               placeholder="Edit your team report here..."
-              maxLength={10000}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -412,7 +381,6 @@ export function TeamAggregationForm() {
         </div>
       </div>
 
-      {/* Report Organization & Help - Third Row */}
       {hasOutput && (
         <div className="bg-linear-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-6">
           <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">

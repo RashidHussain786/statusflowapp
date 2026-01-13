@@ -1,4 +1,3 @@
-// Data types for the status generator
 export type AppStatus = {
   app: string;
   content: string; // HTML content from TipTap editor

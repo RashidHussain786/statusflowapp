@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
-import { encodeStatus, validatePayload } from '@/lib/encoding';
+import { encodeStatus, validateAndSplitPayload } from '@/lib/encoding';
 import { StatusPayload, AppStatus } from '@/lib/types';
 
 export function IndividualStatusForm() {
@@ -14,11 +14,11 @@ export function IndividualStatusForm() {
   });
   const [apps, setApps] = useState<AppStatus[]>([{ app: '', content: '' }]);
   const [expandedApps, setExpandedApps] = useState<Set<number>>(new Set([0]));
-  const [generatedUrl, setGeneratedUrl] = useState('');
+  const [generatedUrls, setGeneratedUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [currentUrlLength, setCurrentUrlLength] = useState<number>(0);
 
-  // Generate URL when form changes
   useEffect(() => {
     const hasValidApps = apps.some(app => app.app.trim() && app.content.trim());
 
@@ -26,7 +26,7 @@ export function IndividualStatusForm() {
       const validApps = apps.filter(app => app.app.trim() && app.content.trim());
 
       if (validApps.length === 0) {
-        setGeneratedUrl('');
+        setGeneratedUrls([]);
         return;
       }
 
@@ -37,26 +37,33 @@ export function IndividualStatusForm() {
         apps: validApps,
       };
 
-      const validation = validatePayload(payload);
-      if (!validation.valid) {
-        setError(validation.error || 'Invalid payload');
-        setGeneratedUrl('');
+      const result = validateAndSplitPayload(payload);
+      if (result.error) {
+        setError(result.error);
+        setGeneratedUrls([]);
+        setCurrentUrlLength(0);
         return;
       }
 
       setError('');
-      const fragment = encodeStatus(payload);
-      const fullUrl = `${window.location.origin}${window.location.pathname}${fragment}`;
-      setGeneratedUrl(fullUrl);
+      const fullUrls = result.urls.map(fragment =>
+        `${window.location.origin}${window.location.pathname}${fragment}`
+      );
+
+      // Calculate total length across all URLs
+      const totalLength = fullUrls.reduce((sum, url) => sum + url.length, 0);
+      setCurrentUrlLength(totalLength);
+
+      setGeneratedUrls(fullUrls);
     } else {
-      setGeneratedUrl('');
+      setGeneratedUrls([]);
+      setCurrentUrlLength(0);
     }
   }, [name, date, apps]);
 
   const addApp = () => {
     const newIndex = apps.length;
     setApps([...apps, { app: '', content: '' }]);
-    // Collapse all previous apps and expand only the new one
     setExpandedApps(new Set([newIndex]));
   };
 
@@ -80,10 +87,8 @@ export function IndividualStatusForm() {
   const toggleAppExpansion = (index: number) => {
     const newExpanded = new Set(expandedApps);
     if (newExpanded.has(index)) {
-      // If currently expanded, collapse it
       newExpanded.delete(index);
     } else {
-      // If not expanded, collapse all and expand only this one
       newExpanded.clear();
       newExpanded.add(index);
     }
@@ -97,14 +102,17 @@ export function IndividualStatusForm() {
   };
 
   const copyToClipboard = async () => {
+    const contentToCopy = generatedUrls.length === 1
+      ? generatedUrls[0]
+      : generatedUrls.join('\n\n');
+
     try {
-      await navigator.clipboard.writeText(generatedUrl);
+      await navigator.clipboard.writeText(contentToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
-      textArea.value = generatedUrl;
+      textArea.value = contentToCopy;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
@@ -118,20 +126,19 @@ export function IndividualStatusForm() {
 
   return (
     <div className="max-w-none">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
+      <div className="mb-6 2xl:mb-8">
+        <h1 className="text-2xl 2xl:text-3xl font-bold tracking-tight text-foreground mb-2">
           Create Your Status Link
         </h1>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-base 2xl:text-lg">
           Generate a shareable link containing your daily status updates. No account required.
         </p>
       </div>
 
-      {/* Applications Section - Full Width */}
-      <div className="bg-card border border-border rounded-lg p-6 shadow-sm mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-card-foreground">Applications</h2>
+
+      <div className="bg-card border border-border rounded-lg p-4 2xl:p-6 shadow-sm mb-6 2xl:mb-8">
+        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+          <h2 className="text-base 2xl:text-lg font-semibold text-card-foreground">Applications</h2>
           <div className="flex items-center gap-3">
             <div className="relative">
               <input
@@ -159,15 +166,15 @@ export function IndividualStatusForm() {
             />
             <button
               onClick={copyToClipboard}
-              disabled={!generatedUrl || !name.trim()}
-              title={!name.trim() ? 'Please enter your name first' : generatedUrl ? 'Copy shareable link' : 'Complete the form to generate link'}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${!generatedUrl || !name.trim()
+              disabled={generatedUrls.length === 0 || !name.trim()}
+              title={!name.trim() ? 'Please enter your name first' : generatedUrls.length > 0 ? `Copy ${generatedUrls.length > 1 ? 'all shareable links' : 'shareable link'}` : 'Complete the form to generate link'}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${generatedUrls.length === 0 || !name.trim()
                 ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer'
                 }`}
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied!' : 'Copy Link'}
+              {copied ? 'Copied!' : generatedUrls.length > 1 ? `Copy All Links (${generatedUrls.length})` : 'Copy Link'}
             </button>
             <button
               type="button"
@@ -226,6 +233,8 @@ export function IndividualStatusForm() {
                       value={app.content}
                       onChange={(value) => updateApp(index, 'content', value)}
                       placeholder="Describe your updates for this application..."
+                      currentUrlLength={currentUrlLength}
+                      urlCount={generatedUrls.length}
                     />
                   </div>
                 )}
@@ -235,7 +244,7 @@ export function IndividualStatusForm() {
         </div>
       </div>
 
-      {/* Row 3: Privacy & Security - Full Width */}
+
       <div className="bg-linear-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-6">
         <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
           <span className="text-lg">🔒</span>

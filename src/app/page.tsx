@@ -9,9 +9,9 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50">
-        <div className="container mx-auto px-6 py-6 max-w-7xl">
+        <div className="container mx-auto px-4 2xl:px-6 py-4 2xl:py-6 max-w-5xl 2xl:max-w-7xl">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <Link className="flex items-center gap-3" href="/">
               <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg">
                 <span className="text-primary-foreground font-bold text-xl">S</span>
               </div>
@@ -19,7 +19,7 @@ export default function Home() {
                 <h1 className="text-2xl font-bold text-foreground">StatusFlowApp</h1>
                 <p className="text-sm text-muted-foreground">Privacy-First Team Status Generator</p>
               </div>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-6">
               {/* Trust indicators */}
@@ -43,14 +43,11 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-16 max-w-4xl">
+      <main className="container mx-auto px-4 2xl:px-6 py-12 2xl:py-16 max-w-4xl">
         {/* Hero Section */}
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
-            Streamline Your
-            <span className="text-primary"> Team Status</span>
-            <br />
-            Updates
+            Streamline Your<span className="text-primary"> Team Status</span> Updates
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Create shareable status links for your daily updates, then combine them into comprehensive team reports.
@@ -188,8 +185,8 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/50 mt-20">
-        <div className="container mx-auto px-6 py-8 max-w-7xl">
+      <footer className="border-t border-border bg-card/50 mt-16 2xl:mt-20">
+        <div className="container mx-auto px-4 2xl:px-6 py-6 2xl:py-8 max-w-5xl 2xl:max-w-7xl">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="text-center md:text-left">
               <div className="flex items-center gap-3 mb-2">
