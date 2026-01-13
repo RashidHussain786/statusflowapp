@@ -367,7 +367,6 @@ export function TeamAggregationForm() {
               value={editableContent}
               onChange={setEditableContent}
               placeholder="Edit your team report here..."
-              maxLength={10000}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
