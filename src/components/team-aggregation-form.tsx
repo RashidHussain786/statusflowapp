@@ -85,7 +85,7 @@ export function TeamAggregationForm() {
       return Object.entries(appGroups)
         .map(([app, appEntries]) => {
           const personUpdates = appEntries
-            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
+            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content, true)}</li>`)
             .join('');
 
           return `<h3>${app} Application:</h3><ul>${personUpdates}</ul>`;
@@ -101,14 +101,14 @@ export function TeamAggregationForm() {
       return Object.entries(personGroups)
         .map(([person, personEntries]) => {
           const appUpdates = personEntries
-            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
+            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content, true)}</li>`)
             .join('');
 
           return `<h3>${person}:</h3><ul>${appUpdates}</ul>`;
         })
         .join('');
     }
-  }, [processedData, mergeMode, selectedApp, showTagsInMerge]);
+  }, [processedData, mergeMode, selectedApp]);
 
   useEffect(() => {
     if (generateOutput) {
@@ -378,6 +378,7 @@ export function TeamAggregationForm() {
               showTagsToggle={true}
               showTags={showTagsInMerge}
               onShowTagsChange={setShowTagsInMerge}
+              enableTextStyling={true}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">

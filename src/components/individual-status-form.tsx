@@ -13,7 +13,7 @@ export function IndividualStatusForm() {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
-  const [apps, setApps] = useState<AppStatus[]>([{ app: '', content: '' }]);
+  const [apps, setApps] = useState<AppStatus[]>([{ app: '', content: '<ul><li></li></ul>' }]);
   const [expandedApps, setExpandedApps] = useState<Set<number>>(new Set([0]));
   const [generatedUrls, setGeneratedUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
@@ -66,7 +66,7 @@ export function IndividualStatusForm() {
 
   const addApp = () => {
     const newIndex = apps.length;
-    setApps([...apps, { app: '', content: '' }]);
+    setApps([...apps, { app: '', content: '<ul><li></li></ul>' }]);
     setExpandedApps(new Set([newIndex]));
   };
 

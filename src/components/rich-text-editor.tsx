@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, forwardRef, useImperativeHandle, useState, useRef } from 'react';
-import { Bold, Italic, List, ListOrdered, Strikethrough, Underline, Tag, Plus } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Strikethrough, Underline, Tag, Plus, X } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
 import OrderedList from '@tiptap/extension-ordered-list';
 import { STATUS_TAGS, getAllTags, addCustomTag, isTagLabelTaken, removeCustomTag } from '@/lib/tags';
 import { VisualTagsExtension } from '@/lib/visual-tags-plugin';
+import { TextColor, TextHighlight } from '@/lib/text-styling-extensions';
 
 interface RichTextEditorProps {
   value: string;
@@ -18,6 +19,7 @@ interface RichTextEditorProps {
   showTagsToggle?: boolean;
   showTags?: boolean;
   onShowTagsChange?: (show: boolean) => void;
+  enableTextStyling?: boolean;
 }
 
 export interface EditorRef {
@@ -31,8 +33,9 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   currentUrlLength,
   urlCount = 1,
   showTagsToggle = false,
-  showTags = false,
-  onShowTagsChange
+  showTags = true,
+  onShowTagsChange,
+  enableTextStyling = false,
 }, ref) => {
   const [showTagSelector, setShowTagSelector] = useState(false);
   const [showCreateTag, setShowCreateTag] = useState(false);
@@ -58,6 +61,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
       UnderlineExtension,
       OrderedList,
       VisualTagsExtension,
+      ...(enableTextStyling ? [TextColor, TextHighlight] : []),
     ],
     content: '',
     immediatelyRender: false,
@@ -67,7 +71,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-4',
       },
     },
-  });
+  }, [enableTextStyling]);
 
   useEffect(() => {
     if (editor && !editor.isDestroyed && value) {
@@ -138,7 +142,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   }
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${!showTags ? 'hide-visual-tags' : ''}`}>
       <div className="flex items-center gap-1 p-3 border border-input rounded-t-lg bg-muted/50">
         <button
           type="button"
@@ -232,6 +236,71 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
             <Plus className="h-3 w-3" />
             <span className="hidden sm:inline">New Tag</span>
           </button>
+
+          {enableTextStyling && (
+            <div className="flex items-center gap-3 ml-2 border-l border-border pl-2">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Text:</span>
+                <div className="flex items-center gap-1">
+                  {['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#111827'].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => editor?.chain().focus().setMark('textColor', { color: c }).run()}
+                      className="w-4 h-4 rounded border border-border"
+                      style={{ backgroundColor: c }}
+                      title={`Text ${c}`}
+                    />
+                  ))}
+                </div>
+                <input
+                  type="color"
+                  onChange={(e) => editor?.chain().focus().setMark('textColor', { color: e.target.value }).run()}
+                  className="w-6 h-6 border border-input rounded cursor-pointer"
+                  title="Text Color"
+                />
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().unsetMark('textColor').run()}
+                  className="p-1 rounded hover:bg-accent"
+                  title="Remove Text Color"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Highlight:</span>
+                <div className="flex items-center gap-1">
+                  {['#fff59d', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff'].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => editor?.chain().focus().setMark('textHighlight', { backgroundColor: c }).run()}
+                      className="w-4 h-4 rounded border border-border"
+                      style={{ backgroundColor: c }}
+                      title={`Highlight ${c}`}
+                    />
+                  ))}
+                </div>
+                <input
+                  type="color"
+                  defaultValue="#ffff00"
+                  onChange={(e) => editor?.chain().focus().setMark('textHighlight', { backgroundColor: e.target.value }).run()}
+                  className="w-6 h-6 border border-input rounded cursor-pointer"
+                  title="Highlight Color"
+                />
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().unsetMark('textHighlight').run()}
+                  className="p-1 rounded hover:bg-accent"
+                  title="Remove Highlight"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {showTagSelector && (
             <div key={tagUpdateTrigger} className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 max-h-64 overflow-y-auto min-w-48">
