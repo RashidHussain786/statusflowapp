@@ -31,14 +31,13 @@ export function IndividualStatusForm() {
         return;
       }
 
-      const customTags = loadCustomTags();
-
       const payload: StatusPayload = {
         v: 2,
         name: name.trim(),
         date,
         apps: validApps,
-        customTags: customTags.length > 0 ? customTags : undefined,
+        // Don't include customTags in URL to keep it smaller
+        // Tags will be resolved from localStorage when merging
       };
 
       const result = validateAndSplitPayload(payload);

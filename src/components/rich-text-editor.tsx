@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
 import OrderedList from '@tiptap/extension-ordered-list';
 import { STATUS_TAGS, getAllTags, addCustomTag, isTagLabelTaken, removeCustomTag } from '@/lib/tags';
+import { VisualTagsExtension } from '@/lib/visual-tags-plugin';
 
 interface RichTextEditorProps {
   value: string;
@@ -56,6 +57,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
       }),
       UnderlineExtension,
       OrderedList,
+      VisualTagsExtension,
     ],
     content: '',
     immediatelyRender: false,
