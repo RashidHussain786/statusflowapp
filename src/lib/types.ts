@@ -4,10 +4,11 @@ export type AppStatus = {
 };
 
 export type StatusPayload = {
-  v: 1; // schema version
+  v: 1 | 2; // schema version
   name: string;
   date: string; // ISO date string
   apps: AppStatus[];
+  customTags?: import('./tags').StatusTag[]; // Optional for backward compatibility
 };
 
 export type NormalizedEntry = {

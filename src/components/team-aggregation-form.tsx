@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Copy, Check, Download } from 'lucide-react';
-import { extractStatusUrls, decodeMultipleStatuses, URL_PREFIX } from '@/lib/encoding';
+import { extractStatusUrls, decodeMultipleStatuses, decodeStatus, URL_PREFIX } from '@/lib/encoding';
 import { MergeMode, NormalizedEntry } from '@/lib/types';
 import { RichTextEditor, EditorRef } from './rich-text-editor';
+import { loadCustomTags, saveCustomTags, StatusTag } from '@/lib/tags';
 
 export function TeamAggregationForm() {
   const [urlsText, setUrlsText] = useState('');
@@ -20,8 +21,31 @@ export function TeamAggregationForm() {
 
   const processedData = useMemo(() => {
     const fragments = extractStatusUrls(urlsText);
+    const decodedPayloads = fragments.map(fragment => decodeStatus(fragment)).filter(Boolean) as import('@/lib/types').StatusPayload[];
     const entries = decodeMultipleStatuses(fragments);
     const invalidLines = urlsText.split('\n').filter(line => line.trim() && !line.includes(URL_PREFIX));
+
+    // Collect and merge custom tags from all payloads
+    const allCustomTags = new Map<string, StatusTag>();
+    const localCustomTags = loadCustomTags();
+
+    // Add local custom tags first
+    localCustomTags.forEach(tag => allCustomTags.set(tag.id, tag));
+
+    // Add custom tags from URLs (these take precedence if they have the same ID)
+    decodedPayloads.forEach(payload => {
+      if (payload.customTags) {
+        payload.customTags.forEach(tag => {
+          allCustomTags.set(tag.id, tag);
+        });
+      }
+    });
+
+    // Save merged custom tags back to localStorage
+    const mergedCustomTags = Array.from(allCustomTags.values());
+    if (mergedCustomTags.length > localCustomTags.length) {
+      saveCustomTags(mergedCustomTags);
+    }
 
     const appMap = new Map<string, string>();
     entries.forEach(entry => {
@@ -32,7 +56,7 @@ export function TeamAggregationForm() {
     });
     const uniqueApps = Array.from(appMap.values()).sort((a, b) => a.localeCompare(b));
 
-    return { fragments, entries, invalidLines, uniqueApps };
+    return { fragments, entries, invalidLines, uniqueApps, customTags: mergedCustomTags };
   }, [urlsText]);
 
   const cleanContentHtml = (html: string, showTags: boolean = true): string => {
@@ -43,9 +67,8 @@ export function TeamAggregationForm() {
       .replace(/<br\s*\/?>/gi, '\n')
       .trim();
 
-    // Remove tag labels like [ENH], [WORKING], etc. when not showing tags
     if (!showTags) {
-      cleaned = cleaned.replace(/\[[A-Z]+\]\s*/g, '');
+      cleaned = cleaned.replace(/\[[A-Z\s]+\]\s*/g, '');
     }
 
     if (!cleaned.trim()) return '';

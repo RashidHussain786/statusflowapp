@@ -4,6 +4,7 @@ export interface StatusTag {
   color: string;
   bgColor: string;
   description: string;
+  isCustom?: boolean;
 }
 
 export const STATUS_TAGS: StatusTag[] = [
@@ -88,3 +89,79 @@ export const getTagByLabel = (label: string): StatusTag | undefined => {
 };
 
 export const DEFAULT_TAGS = ['enh', 'working'];
+
+// Custom tag management
+export interface CustomTagData {
+  tags: StatusTag[];
+  version: 1;
+}
+
+const CUSTOM_TAGS_KEY = 'statusgen-custom-tags';
+
+// Get all tags (default + custom)
+export const getAllTags = (): StatusTag[] => {
+  const customTags = loadCustomTags();
+  return [...customTags, ...STATUS_TAGS];
+};
+
+// Load custom tags from localStorage
+export const loadCustomTags = (): StatusTag[] => {
+  try {
+    const stored = localStorage.getItem(CUSTOM_TAGS_KEY);
+    if (stored) {
+      const data: CustomTagData = JSON.parse(stored);
+      return data.tags || [];
+    }
+  } catch (error) {
+    console.warn('Failed to load custom tags:', error);
+  }
+  return [];
+};
+
+// Save custom tags to localStorage
+export const saveCustomTags = (tags: StatusTag[]): void => {
+  try {
+    const data: CustomTagData = {
+      tags,
+      version: 1
+    };
+    localStorage.setItem(CUSTOM_TAGS_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.warn('Failed to save custom tags:', error);
+  }
+};
+
+// Add a new custom tag
+export const addCustomTag = (label: string, color: string): StatusTag => {
+  const customTags = loadCustomTags();
+
+  // Generate a unique ID
+  const id = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const newTag: StatusTag = {
+    id,
+    label: label.toUpperCase(),
+    color,
+    bgColor: `${color}20`, // Add transparency
+    description: `Custom tag: ${label}`,
+    isCustom: true
+  };
+
+  const updatedTags = [...customTags, newTag];
+  saveCustomTags(updatedTags);
+
+  return newTag;
+};
+
+// Remove a custom tag
+export const removeCustomTag = (tagId: string): void => {
+  const customTags = loadCustomTags();
+  const filteredTags = customTags.filter(tag => tag.id !== tagId);
+  saveCustomTags(filteredTags);
+};
+
+// Check if a tag label already exists
+export const isTagLabelTaken = (label: string): boolean => {
+  const allTags = getAllTags();
+  return allTags.some(tag => tag.label.toLowerCase() === label.toLowerCase());
+};

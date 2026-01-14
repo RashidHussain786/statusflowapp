@@ -5,6 +5,7 @@ import { Plus, Trash2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-rea
 import { RichTextEditor } from './rich-text-editor';
 import { encodeStatus, validateAndSplitPayload } from '@/lib/encoding';
 import { StatusPayload, AppStatus } from '@/lib/types';
+import { loadCustomTags } from '@/lib/tags';
 
 export function IndividualStatusForm() {
   const [name, setName] = useState('');
@@ -30,11 +31,14 @@ export function IndividualStatusForm() {
         return;
       }
 
+      const customTags = loadCustomTags();
+
       const payload: StatusPayload = {
-        v: 1,
+        v: 2,
         name: name.trim(),
         date,
         apps: validApps,
+        customTags: customTags.length > 0 ? customTags : undefined,
       };
 
       const result = validateAndSplitPayload(payload);
