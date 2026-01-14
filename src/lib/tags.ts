@@ -131,6 +131,28 @@ export const saveCustomTags = (tags: StatusTag[]): void => {
   }
 };
 
+// Helper to convert hex to rgba
+export function hexToRgba(hex: string, alpha: number): string {
+  let c: any;
+  if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+    c = hex.substring(1).split('');
+    if (c.length === 3) {
+      c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+    }
+    c = '0x' + c.join('');
+    return `rgba(${[(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',')},${alpha})`;
+  }
+  // fallback for non-hex colors
+  if (hex.startsWith('rgb')) {
+    const rgba = hex.replace(/^(rgb|rgba)\(/, '').replace(/\)$/, '').replace(/\s/g, '').split(',');
+    if (rgba.length === 3) {
+      return `rgba(${rgba.join(',')},${alpha})`;
+    }
+    return hex; // It's already rgba or something else
+  }
+  return hex; // Not a hex color, return as is.
+}
+
 // Add a new custom tag
 export const addCustomTag = (label: string, color: string): StatusTag => {
   const customTags = loadCustomTags();
@@ -142,7 +164,7 @@ export const addCustomTag = (label: string, color: string): StatusTag => {
     id,
     label: label.toUpperCase(),
     color,
-    bgColor: `${color}20`, // Add transparency
+    bgColor: hexToRgba(color, 0.1), // Add transparency
     description: `Custom tag: ${label}`,
     isCustom: true
   };

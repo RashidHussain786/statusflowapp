@@ -1,7 +1,7 @@
 import { Extension } from '@tiptap/core';
 import { Plugin } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
-import { STATUS_TAGS, getAllTags } from './tags';
+import { STATUS_TAGS, getAllTags, hexToRgba } from './tags';
 
 // Generate a consistent random color for unknown tags based on tag label
 function getRandomColorForTag(tagLabel: string): { bgColor: string; color: string } {
@@ -69,7 +69,7 @@ export const VisualTagsExtension = Extension.create({
                         color: ${tag.color};
                         padding: 0.125rem 0.25rem;
                         border-radius: 0.25rem;
-                        border: 1px solid ${tag.color}40;
+                        border: 1px solid ${hexToRgba(tag.color, 0.25)};
                         font-weight: 500;
                         font-size: 0.75rem;
                         display: inline-block;

@@ -3,22 +3,20 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
-import { encodeStatus, validateAndSplitPayload } from '@/lib/encoding';
+import { encodeStatus, validateAndSplitPayload, decodeStatus, URL_PREFIX, extractStatusUrls } from '@/lib/encoding';
 import { StatusPayload, AppStatus } from '@/lib/types';
 import { loadCustomTags } from '@/lib/tags';
 
 export function IndividualStatusForm() {
   const [name, setName] = useState('');
-  const [date, setDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [apps, setApps] = useState<AppStatus[]>([{ app: '', content: '<ul><li></li></ul>' }]);
   const [expandedApps, setExpandedApps] = useState<Set<number>>(new Set([0]));
   const [generatedUrls, setGeneratedUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [currentUrlLength, setCurrentUrlLength] = useState<number>(0);
+  const [statusLink, setStatusLink] = useState('');
 
   useEffect(() => {
     const hasValidApps = apps.some(app => app.app.trim() && app.content.trim());
@@ -64,6 +62,104 @@ export function IndividualStatusForm() {
     }
   }, [name, date, apps]);
 
+  // When the user pastes a previously generated status link (or multiple),
+  // decode it and populate the form so they can edit their earlier status.
+  useEffect(() => {
+    const raw = statusLink.trim();
+    if (!raw) return;
+
+    try {
+      // Try to extract one or more status fragments from the pasted text
+      const fragmentsFromHelper = extractStatusUrls(raw);
+
+      let fragments = fragmentsFromHelper;
+
+      // If helper didn't find anything, fall back to simple regex on the raw text
+      if (!fragments || fragments.length === 0) {
+        const regexMatches = raw.match(/#s=[^\s]+/g);
+        if (regexMatches) {
+          fragments = regexMatches;
+        }
+      }
+
+      if (!fragments || fragments.length === 0) return;
+
+      const payloads = fragments
+        .map(fragment => decodeStatus(fragment))
+        .filter((p): p is StatusPayload => !!p);
+
+      if (payloads.length === 0) return;
+
+      // Ensure all payloads are for the same person (case-insensitive name match)
+      const uniqueNames = Array.from(
+        new Set(
+          payloads
+            .map(p => (p.name || '').trim().toLowerCase())
+            .filter(n => n.length > 0)
+        )
+      );
+
+      if (uniqueNames.length > 1) {
+        setError('These status links belong to different people. Please paste links for the same person only.');
+        return;
+      }
+
+      setError('');
+      const first = payloads[0];
+      setName(first.name ?? '');
+      const today = new Date().toISOString().split('T')[0];
+      setDate(today);
+
+      // Merge applications from all payloads for this person.
+      // This handles cases where the original status was split into
+      // multiple URLs either by applications or by content parts.
+      type MergedApp = { app: string; contents: string[] };
+      const appMap = new Map<string, MergedApp>(); // key: normalized base app name
+      const order: string[] = []; // preserve insertion order
+
+      for (const payload of payloads) {
+        for (const app of payload.apps || []) {
+          const baseAppName = app.app.replace(/ \[Part \d+\]$/, ''); // strip " [Part N]"
+          const key = baseAppName.toLowerCase().trim();
+
+          if (!appMap.has(key)) {
+            appMap.set(key, { app: baseAppName, contents: [] });
+            order.push(key);
+          }
+
+          if (app.content && app.content.trim()) {
+            appMap.get(key)!.contents.push(app.content);
+          }
+        }
+      }
+
+      const mergedApps: AppStatus[] = order.map(key => {
+        const entry = appMap.get(key)!;
+        return {
+          app: entry.app,
+          content: entry.contents.join('\n\n') || '<ul><li></li></ul>',
+        };
+      });
+
+      const finalApps =
+        mergedApps.length > 0
+          ? mergedApps
+          : [{ app: '', content: '<ul><li></li></ul>' }];
+
+      setApps(finalApps);
+
+      // Expand the first app by default
+      const newExpanded = new Set<number>();
+      if (finalApps.length > 0) {
+        newExpanded.add(0);
+      }
+      setExpandedApps(newExpanded);
+    } catch (err) {
+      console.warn('Failed to process pasted status link(s):', err);
+      setError('Something went wrong while reading that link. Please check the URL and try again.');
+    }
+  }, [statusLink]);
+
   const addApp = () => {
     const newIndex = apps.length;
     setApps([...apps, { app: '', content: '<ul><li></li></ul>' }]);
@@ -107,44 +203,66 @@ export function IndividualStatusForm() {
   const copyToClipboard = async () => {
     if (generatedUrls.length === 0) return;
 
-    const textContent = generatedUrls.join('\n\n');
-    const htmlContent = generatedUrls.map((url, index) =>
-        `<a href="${url}">Status Link ${generatedUrls.length > 1 ? index + 1 : ''}</a>`.trim()
-    ).join('<br>');
+    const now = new Date();
+    const timeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const baseLabel = name.trim()
+      ? `${name.trim()} – ${date} ${timeLabel}`
+      : `Status for ${date} ${timeLabel}`;
+
+    // Plain-text version with labels so it's readable in non-rich editors
+    const textContent = generatedUrls
+      .map((url, index) =>
+        generatedUrls.length > 1
+          ? `${baseLabel} (Link ${index + 1}): ${url}`
+          : `${baseLabel}: ${url}`
+      )
+      .join('\n\n');
+
+    // Rich-text version for tools that support pasting HTML
+    const htmlContent = generatedUrls
+      .map((url, index) => {
+        const label =
+          generatedUrls.length > 1
+            ? `${baseLabel} (Link ${index + 1})`
+            : baseLabel;
+        return `<a href="${url}">${label}</a>`;
+      })
+      .join('<br>');
 
     try {
-        // Modern browsers with Clipboard API
-        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-        const textBlob = new Blob([textContent], { type: 'text/plain' });
-        const item = new ClipboardItem({
-            'text/html': htmlBlob,
-            'text/plain': textBlob,
-        });
-        await navigator.clipboard.write([item]);
+      // Modern browsers with Clipboard API
+      const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+      const textBlob = new Blob([textContent], { type: 'text/plain' });
+      const item = new ClipboardItem({
+        'text/html': htmlBlob,
+        'text/plain': textBlob,
+      });
+      await navigator.clipboard.write([item]);
 
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers or if Clipboard API fails
+      console.warn("Rich text copy failed, falling back to plain text copy.", err);
+      const textArea = document.createElement('textarea');
+      textArea.value = textContent;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        document.execCommand('copy');
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-        // Fallback for older browsers or if Clipboard API fails
-        console.warn("Rich text copy failed, falling back to plain text copy.", err);
-        const textArea = document.createElement('textarea');
-        textArea.value = textContent;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
+      } catch (copyErr) {
+        console.error('Fallback plain text copy failed.', copyErr);
+      }
 
-        try {
-            document.execCommand('copy');
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch (copyErr) {
-            console.error('Fallback plain text copy failed.', copyErr);
-        }
-
-        document.body.removeChild(textArea);
+      document.body.removeChild(textArea);
     }
   };
 
@@ -159,6 +277,20 @@ export function IndividualStatusForm() {
         <p className="text-muted-foreground text-base 2xl:text-lg">
           Generate a shareable link containing your daily status updates. No account required.
         </p>
+      </div>
+
+      <div className="mb-4">
+        <label htmlFor="status-link-input" className="block text-sm font-medium text-muted-foreground mb-2">
+          Or paste a status link to edit
+        </label>
+        <textarea
+          id="status-link-input"
+          value={statusLink}
+          onChange={(e) => setStatusLink(e.target.value)}
+          placeholder="Paste a previously generated status link here..."
+          className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+          rows={2}
+        />
       </div>
 
 
