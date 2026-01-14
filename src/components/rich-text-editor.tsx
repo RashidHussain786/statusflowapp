@@ -142,7 +142,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   }
 
   return (
-    <div className={`space-y-3 ${!showTags ? 'hide-visual-tags' : ''}`}>
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1 2xl:gap-2 p-2 2xl:p-3 border border-input rounded-t-lg bg-muted/50">
         <button
           type="button"

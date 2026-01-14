@@ -85,7 +85,7 @@ export function TeamAggregationForm() {
       return Object.entries(appGroups)
         .map(([app, appEntries]) => {
           const personUpdates = appEntries
-            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content, true)}</li>`)
+            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
             .join('');
 
           return `<h3>${app} Application:</h3><ul>${personUpdates}</ul>`;
@@ -101,14 +101,14 @@ export function TeamAggregationForm() {
       return Object.entries(personGroups)
         .map(([person, personEntries]) => {
           const appUpdates = personEntries
-            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content, true)}</li>`)
+            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
             .join('');
 
           return `<h3>${person}:</h3><ul>${appUpdates}</ul>`;
         })
         .join('');
     }
-  }, [processedData, mergeMode, selectedApp]);
+  }, [processedData, mergeMode, selectedApp, showTagsInMerge]);
 
   useEffect(() => {
     if (generateOutput) {
@@ -200,18 +200,42 @@ export function TeamAggregationForm() {
       .replace(/\n+$/, '');
   };
 
+  const removeStatusTags = (text: string): string => {
+    return text.replace(/\[[A-Z\s]+\]\s*/g, '');
+  };
+
   const copyToClipboard = async () => {
     try {
-      const editorElement = document.querySelector('[data-radix-editor-content]') as HTMLElement;
+      const editorElement = document.querySelector('.ProseMirror') as HTMLElement | null;
       if (editorElement) {
+        let elementToCopy: HTMLElement = editorElement;
+        let tempContainer: HTMLElement | null = null;
+        if (!showTagsInMerge) {
+          tempContainer = document.createElement('div');
+          tempContainer.style.position = 'fixed';
+          tempContainer.style.left = '-999999px';
+          tempContainer.style.top = '-999999px';
+
+          const cloned = editorElement.cloneNode(true) as HTMLElement;
+          cloned.querySelectorAll('.visual-tag').forEach(el => el.remove());
+
+          tempContainer.appendChild(cloned);
+          document.body.appendChild(tempContainer);
+          elementToCopy = cloned;
+        }
+
         const range = document.createRange();
-        range.selectNodeContents(editorElement);
+        range.selectNodeContents(elementToCopy);
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
 
         const successful = document.execCommand('copy');
         selection?.removeAllRanges();
+
+        if (tempContainer) {
+          document.body.removeChild(tempContainer);
+        }
 
         if (successful) {
           setCopied(true);
@@ -220,7 +244,10 @@ export function TeamAggregationForm() {
         }
       }
 
-      const textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
+      let textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
+      if (!showTagsInMerge) {
+        textToCopy = removeStatusTags(textToCopy);
+      }
       const textArea = document.createElement('textarea');
       textArea.value = textToCopy;
       textArea.style.position = 'fixed';
@@ -240,7 +267,10 @@ export function TeamAggregationForm() {
     } catch (err) {
       console.error('Copy error:', err);
       try {
-        const textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
+        let textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
+        if (!showTagsInMerge) {
+          textToCopy = removeStatusTags(textToCopy);
+        }
         await navigator.clipboard.writeText(textToCopy);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
