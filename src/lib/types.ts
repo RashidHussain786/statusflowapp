@@ -1,6 +1,6 @@
 export type AppStatus = {
   app: string;
-  content: string; // HTML content from TipTap editor
+  content: string; // HTML content from TipTap editor with tag data attributes
 };
 
 export type StatusPayload = {

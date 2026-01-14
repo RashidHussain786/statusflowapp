@@ -13,6 +13,7 @@ export function TeamAggregationForm() {
   const [copied, setCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [editableContent, setEditableContent] = useState('');
+  const [showTagsInMerge, setShowTagsInMerge] = useState(false);
   const editorRef = useRef<EditorRef>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
@@ -34,13 +35,18 @@ export function TeamAggregationForm() {
     return { fragments, entries, invalidLines, uniqueApps };
   }, [urlsText]);
 
-  const cleanContentHtml = (html: string): string => {
+  const cleanContentHtml = (html: string, showTags: boolean = true): string => {
     if (!html) return '';
 
     let cleaned = html
       .replace(/<\/?p[^>]*>/gi, '')
       .replace(/<br\s*\/?>/gi, '\n')
       .trim();
+
+    // Remove tag labels like [ENH], [WORKING], etc. when not showing tags
+    if (!showTags) {
+      cleaned = cleaned.replace(/\[[A-Z]+\]\s*/g, '');
+    }
 
     if (!cleaned.trim()) return '';
 
@@ -77,7 +83,7 @@ export function TeamAggregationForm() {
       return Object.entries(appGroups)
         .map(([app, appEntries]) => {
           const personUpdates = appEntries
-            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content)}</li>`)
+            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
             .join('');
 
           return `<h3>${app} Application:</h3><ul>${personUpdates}</ul>`;
@@ -93,14 +99,14 @@ export function TeamAggregationForm() {
       return Object.entries(personGroups)
         .map(([person, personEntries]) => {
           const appUpdates = personEntries
-            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content)}</li>`)
+            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
             .join('');
 
           return `<h3>${person}:</h3><ul>${appUpdates}</ul>`;
         })
         .join('');
     }
-  }, [processedData, mergeMode, selectedApp]);
+  }, [processedData, mergeMode, selectedApp, showTagsInMerge]);
 
   useEffect(() => {
     if (generateOutput) {
@@ -367,6 +373,9 @@ export function TeamAggregationForm() {
               value={editableContent}
               onChange={setEditableContent}
               placeholder="Edit your team report here..."
+              showTagsToggle={true}
+              showTags={showTagsInMerge}
+              onShowTagsChange={setShowTagsInMerge}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">

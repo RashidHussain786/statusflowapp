@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Bold, Italic, List, ListOrdered, Strikethrough, Underline } from 'lucide-react';
+import { useCallback, useEffect, forwardRef, useImperativeHandle, useState, useRef } from 'react';
+import { Bold, Italic, List, ListOrdered, Strikethrough, Underline, Tag } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
 import OrderedList from '@tiptap/extension-ordered-list';
+import { STATUS_TAGS } from '@/lib/tags';
 
 interface RichTextEditorProps {
   value: string;
@@ -13,6 +14,9 @@ interface RichTextEditorProps {
   placeholder?: string;
   currentUrlLength?: number;
   urlCount?: number;
+  showTagsToggle?: boolean;
+  showTags?: boolean;
+  onShowTagsChange?: (show: boolean) => void;
 }
 
 export interface EditorRef {
@@ -24,14 +28,22 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   onChange,
   placeholder = "Enter your status update...",
   currentUrlLength,
-  urlCount = 1
+  urlCount = 1,
+  showTagsToggle = false,
+  showTags = false,
+  onShowTagsChange
 }, ref) => {
+  const [showTagSelector, setShowTagSelector] = useState(false);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
+
   const handleUpdate = useCallback(({ editor }: any) => {
     setTimeout(() => {
       const html = editor.getHTML();
       onChange(html);
     }, 0);
   }, [onChange]);
+
+
 
   const editor = useEditor({
     extensions: [
@@ -64,6 +76,21 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
     getText: () => editor?.getText() || ''
   }), [editor]);
 
+  const insertTag = useCallback((tagLabel: string) => {
+    editor?.chain().focus().insertContent(`[${tagLabel}] `).run();
+    setShowTagSelector(false);
+  }, [editor]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target as Node)) {
+        setShowTagSelector(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!editor) {
     return null;
@@ -139,6 +166,57 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         >
           <ListOrdered className="h-4 w-4" />
         </button>
+        <div className="relative" ref={tagDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setShowTagSelector(!showTagSelector)}
+            className={`p-2 rounded-md transition-colors ${showTagSelector
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
+            title="Insert status tag"
+          >
+            <Tag className="h-4 w-4" />
+          </button>
+
+          {showTagSelector && (
+            <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 max-h-64 overflow-y-auto min-w-32">
+              {STATUS_TAGS.map(tag => (
+                <button
+                  key={tag.id}
+                  onClick={() => insertTag(tag.label)}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                >
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded"
+                    style={{
+                      backgroundColor: tag.bgColor,
+                      color: tag.color,
+                      border: `1px solid ${tag.color}20`
+                    }}
+                  >
+                    {tag.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showTagsToggle && (
+          <div className="flex items-center gap-2 ml-2">
+            <label className="flex items-center gap-1 cursor-pointer text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showTags}
+                onChange={(e) => onShowTagsChange?.(e.target.checked)}
+                className="text-primary focus:ring-primary border-input w-3 h-3"
+              />
+              <span>Show Tags</span>
+            </label>
+          </div>
+        )}
+
         <div className="ml-auto text-xs text-muted-foreground font-medium">
           {currentUrlLength !== undefined ? (
             urlCount > 1 ? (
@@ -155,6 +233,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
           )}
         </div>
       </div>
+
 
       <div className="border-x border-b border-input rounded-b-lg overflow-hidden">
         <EditorContent
