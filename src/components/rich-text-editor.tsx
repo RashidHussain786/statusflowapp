@@ -6,7 +6,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
 import OrderedList from '@tiptap/extension-ordered-list';
-import { STATUS_TAGS, getAllTags, addCustomTag, isTagLabelTaken, removeCustomTag } from '@/lib/tags';
+import { STATUS_TAGS, getAllTags, addCustomTag, isTagLabelTaken, removeCustomTag, hexToRgba } from '@/lib/tags';
 import { VisualTagsExtension } from '@/lib/visual-tags-plugin';
 import { TextColor, TextHighlight } from '@/lib/text-styling-extensions';
 
@@ -315,7 +315,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
                     style={{
                       backgroundColor: tag.bgColor,
                       color: tag.color,
-                      border: `1px solid ${tag.color}20`
+                      border: `1px solid ${hexToRgba(tag.color, 0.1)}`
                     }}
                   >
                     {tag.label}
