@@ -105,23 +105,46 @@ export function IndividualStatusForm() {
   };
 
   const copyToClipboard = async () => {
-    const contentToCopy = generatedUrls.length === 1
-      ? generatedUrls[0]
-      : generatedUrls.join('\n\n');
+    if (generatedUrls.length === 0) return;
+
+    const textContent = generatedUrls.join('\n\n');
+    const htmlContent = generatedUrls.map((url, index) =>
+        `<a href="${url}">Status Link ${generatedUrls.length > 1 ? index + 1 : ''}</a>`.trim()
+    ).join('<br>');
 
     try {
-      await navigator.clipboard.writeText(contentToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+        // Modern browsers with Clipboard API
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+        const textBlob = new Blob([textContent], { type: 'text/plain' });
+        const item = new ClipboardItem({
+            'text/html': htmlBlob,
+            'text/plain': textBlob,
+        });
+        await navigator.clipboard.write([item]);
+
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      const textArea = document.createElement('textarea');
-      textArea.value = contentToCopy;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+        // Fallback for older browsers or if Clipboard API fails
+        console.warn("Rich text copy failed, falling back to plain text copy.", err);
+        const textArea = document.createElement('textarea');
+        textArea.value = textContent;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (copyErr) {
+            console.error('Fallback plain text copy failed.', copyErr);
+        }
+
+        document.body.removeChild(textArea);
     }
   };
 
