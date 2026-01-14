@@ -207,7 +207,3 @@ code {
   background-color: hsl(var(--primary) / 0.2);
   color: hsl(var(--primary-foreground));
 }
-
-.hide-visual-tags .visual-tag {
-  display: none !important;
-}
