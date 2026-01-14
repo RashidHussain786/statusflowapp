@@ -143,11 +143,11 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
 
   return (
     <div className={`space-y-3 ${!showTags ? 'hide-visual-tags' : ''}`}>
-      <div className="flex items-center gap-1 p-3 border border-input rounded-t-lg bg-muted/50">
+      <div className="flex flex-wrap items-center gap-1 2xl:gap-2 p-2 2xl:p-3 border border-input rounded-t-lg bg-muted/50">
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-2 rounded-md transition-colors ${editor.isActive('bold')
+          className={`p-1.5 2xl:p-2 rounded-md transition-colors ${editor.isActive('bold')
             ? 'bg-primary text-primary-foreground'
             : 'hover:bg-accent hover:text-accent-foreground'
             }`}
@@ -158,7 +158,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-2 rounded-md transition-colors ${editor.isActive('italic')
+          className={`p-1.5 2xl:p-2 rounded-md transition-colors ${editor.isActive('italic')
             ? 'bg-primary text-primary-foreground'
             : 'hover:bg-accent hover:text-accent-foreground'
             }`}
@@ -169,7 +169,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`p-2 rounded-md transition-colors ${editor.isActive('strike')
+          className={`p-1.5 2xl:p-2 rounded-md transition-colors ${editor.isActive('strike')
             ? 'bg-primary text-primary-foreground'
             : 'hover:bg-accent hover:text-accent-foreground'
             }`}
@@ -180,7 +180,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={`p-2 rounded-md transition-colors ${editor.isActive('underline')
+          className={`p-1.5 2xl:p-2 rounded-md transition-colors ${editor.isActive('underline')
             ? 'bg-primary text-primary-foreground'
             : 'hover:bg-accent hover:text-accent-foreground'
             }`}
@@ -192,7 +192,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`p-2 rounded-md transition-colors ${editor.isActive('bulletList')
+          className={`p-1.5 2xl:p-2 rounded-md transition-colors ${editor.isActive('bulletList')
             ? 'bg-primary text-primary-foreground'
             : 'hover:bg-accent hover:text-accent-foreground'
             }`}
@@ -203,7 +203,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`p-2 rounded-md transition-colors ${editor.isActive('orderedList')
+          className={`p-1.5 2xl:p-2 rounded-md transition-colors ${editor.isActive('orderedList')
             ? 'bg-primary text-primary-foreground'
             : 'hover:bg-accent hover:text-accent-foreground'
             }`}
@@ -215,7 +215,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
           <button
             type="button"
             onClick={() => setShowTagSelector(!showTagSelector)}
-            className={`p-2 rounded-md transition-colors ${showTagSelector
+            className={`p-1.5 2xl:p-2 rounded-md transition-colors ${showTagSelector
               ? 'bg-primary text-primary-foreground'
               : 'hover:bg-accent hover:text-accent-foreground'
               }`}
@@ -238,10 +238,10 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
           </button>
 
           {enableTextStyling && (
-            <div className="flex items-center gap-3 ml-2 border-l border-border pl-2">
+            <div className="flex items-center gap-1 2xl:gap-2 ml-1 2xl:ml-2 border-l border-border pl-1 2xl:pl-2">
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">Text:</span>
-                <div className="flex items-center gap-1">
+                <div className="grid grid-cols-3 gap-1">
                   {['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#111827'].map((c) => (
                     <button
                       key={c}
@@ -271,7 +271,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
 
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">Highlight:</span>
-                <div className="flex items-center gap-1">
+                <div className="grid grid-cols-3 gap-1">
                   {['#fff59d', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff'].map((c) => (
                     <button
                       key={c}
