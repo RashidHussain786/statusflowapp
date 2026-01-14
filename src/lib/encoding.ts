@@ -9,7 +9,9 @@ export const URL_PREFIX = '#s=';
  */
 export function encodeStatus(payload: StatusPayload): string {
   try {
-    const jsonString = JSON.stringify(payload);
+    // Ensure the payload has the correct version
+    const payloadToEncode = { ...payload, v: 2 as const };
+    const jsonString = JSON.stringify(payloadToEncode);
     const compressed = compressToEncodedURIComponent(jsonString);
     return `${URL_PREFIX}${compressed}`;
   } catch (error) {
@@ -35,11 +37,29 @@ export function decodeStatus(fragment: string): StatusPayload | null {
 
     const payload = JSON.parse(jsonString) as StatusPayload;
 
-    if (payload.v !== 1 || !payload.name || !payload.date || !Array.isArray(payload.apps)) {
-      return null;
+    // Handle version 1 (backward compatibility)
+    if (payload.v === 1) {
+      if (!payload.name || !payload.date || !Array.isArray(payload.apps)) {
+        return null;
+      }
+      // Convert v1 to v2 format
+      return {
+        ...payload,
+        v: 2 as const,
+        customTags: []
+      };
     }
 
-    return payload;
+    // Handle version 2
+    if (payload.v === 2) {
+      if (!payload.name || !payload.date || !Array.isArray(payload.apps)) {
+        return null;
+      }
+      return payload;
+    }
+
+    // Invalid version
+    return null;
   } catch (error) {
     console.warn('Failed to decode status payload:', error);
     return null;

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Copy, Check, Download } from 'lucide-react';
-import { extractStatusUrls, decodeMultipleStatuses, URL_PREFIX } from '@/lib/encoding';
+import { extractStatusUrls, decodeMultipleStatuses, decodeStatus, URL_PREFIX } from '@/lib/encoding';
 import { MergeMode, NormalizedEntry } from '@/lib/types';
 import { RichTextEditor, EditorRef } from './rich-text-editor';
 
@@ -13,6 +13,7 @@ export function TeamAggregationForm() {
   const [copied, setCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [editableContent, setEditableContent] = useState('');
+  const [showTagsInMerge, setShowTagsInMerge] = useState(false);
   const editorRef = useRef<EditorRef>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
@@ -34,13 +35,20 @@ export function TeamAggregationForm() {
     return { fragments, entries, invalidLines, uniqueApps };
   }, [urlsText]);
 
-  const cleanContentHtml = (html: string): string => {
+  const cleanContentHtml = (html: string, showTags: boolean = true): string => {
     if (!html) return '';
 
     let cleaned = html
       .replace(/<\/?p[^>]*>/gi, '')
       .replace(/<br\s*\/?>/gi, '\n')
       .trim();
+
+    if (!showTags) {
+      // Remove tag labels completely when not showing tags
+      cleaned = cleaned.replace(/\[[A-Z\s]+\]\s*/g, '');
+    }
+    // When showTags is true, keep the [TAG] patterns as-is
+    // The VisualTagsExtension will style them in the editor
 
     if (!cleaned.trim()) return '';
 
@@ -77,7 +85,7 @@ export function TeamAggregationForm() {
       return Object.entries(appGroups)
         .map(([app, appEntries]) => {
           const personUpdates = appEntries
-            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content)}</li>`)
+            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content, true)}</li>`)
             .join('');
 
           return `<h3>${app} Application:</h3><ul>${personUpdates}</ul>`;
@@ -93,7 +101,7 @@ export function TeamAggregationForm() {
       return Object.entries(personGroups)
         .map(([person, personEntries]) => {
           const appUpdates = personEntries
-            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content)}</li>`)
+            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content, true)}</li>`)
             .join('');
 
           return `<h3>${person}:</h3><ul>${appUpdates}</ul>`;
@@ -367,6 +375,10 @@ export function TeamAggregationForm() {
               value={editableContent}
               onChange={setEditableContent}
               placeholder="Edit your team report here..."
+              showTagsToggle={true}
+              showTags={showTagsInMerge}
+              onShowTagsChange={setShowTagsInMerge}
+              enableTextStyling={true}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
