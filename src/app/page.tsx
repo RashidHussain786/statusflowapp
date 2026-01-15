@@ -22,21 +22,6 @@ export default function Home() {
             </Link>
 
             <div className="flex items-center gap-6">
-              {/* Trust indicators */}
-              <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <span>🔒</span>
-                  <span>No backend</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>📱</span>
-                  <span>Works offline</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>🔗</span>
-                  <span>URL storage</span>
-                </div>
-              </div>
               <ThemeToggle />
             </div>
           </div>
@@ -202,9 +187,7 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Built with Next.js, Tailwind CSS, and LZ compression
-              </p>
+
             </div>
             <div className="flex items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">

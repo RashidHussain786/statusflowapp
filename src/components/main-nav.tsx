@@ -19,20 +19,6 @@ export function MainNav() {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
-          <div className="hidden lg:flex items-center space-x-4 text-xs text-muted-foreground">
-            <div className="flex items-center space-x-1">
-              <span>🔒</span>
-              <span>No backend</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span>📱</span>
-              <span>Works offline</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span>🔗</span>
-              <span>URL storage</span>
-            </div>
-          </div>
           <ThemeToggle />
         </div>
       </div>

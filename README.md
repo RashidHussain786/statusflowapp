@@ -1,173 +1,112 @@
-# StatusFlowApp - Privacy-First Team Status Generator
+# Status Generator
 
-A 100% frontend, privacy-first web tool for creating and merging team status updates. All data lives only inside URL fragments - no backend, no login, no storage.
+This is a modern Next.js application designed to streamline the process of creating individual status reports and aggregating them into comprehensive team overviews. It features a rich text editor for detailed report creation, custom tagging, advanced text styling, and a user-friendly interface.
 
-## 🚀 Features
+## Features
 
-### Individual Contributors
-- Create shareable status links with rich text formatting
-- Support for multiple applications per person
-- Rich text formatting (bold, italic, underline, bullet lists, numbered lists)
-- URL-encoded data with LZ compression
-- Character limits and validation
+*   **Individual Status Creation:**
+    *   Utilize a feature-rich editor to draft detailed status updates.
+    *   **Rich Text Formatting:** Apply **Bold**, **Italic**, **Strikethrough**, **Underline**, and structure content with **Bullet** and **Numbered Lists**.
+    *   **Custom Status Tags:** Create, manage, and seamlessly insert custom colored tags (e.g., `[Planned]`, `[Blocked]`) to categorize and highlight critical status information.
+    *   **Dynamic Link Handling:** Easily include multiple URLs within your status reports by typing them directly; the application is designed to track and process these links.
+*   **Team Status Aggregation:**
+    *   Consolidate and review status reports from multiple team members into a comprehensive overview.
+    *   **Advanced Text Styling for Review:** Enhance readability and draw attention to key points within aggregated reports by applying **Text Colors** and **Highlighting**.
+    *   **Visual Tags Display:** Status updates are presented with their associated custom visual tags for quick comprehension.
+*   **Responsive User Interface:** A clean and adaptive design ensures optimal viewing and interaction across various screen sizes.
+*   **Dark Mode Support:** Toggle between light and dark themes for enhanced readability and user preference.
+*   **Type-Safe Development:** Built with TypeScript for improved code quality, reliability, and maintainability.
 
-### Team Leads
-- Aggregate multiple individual status links
-- Two merge modes: Application-wise and Person-wise
-- Formatted output generation
-- Copy to clipboard and download functionality
+## Technologies Used
 
-### Privacy & Security
-- ✅ No backend storage
-- ✅ No login required
-- ✅ No analytics or tracking
-- ✅ Works offline after load
-- ✅ Data never leaves your browser
-- ✅ URL fragment-based storage (#s=...)
+*   **Next.js 14:** A powerful React framework for building full-stack web applications.
+*   **React 18:** For building dynamic and interactive user interfaces.
+*   **TypeScript:** Superset of JavaScript that provides static typing for robust development.
+*   **Tailwind CSS:** A utility-first CSS framework for highly efficient and customizable styling.
+*   **Tiptap:** A headless editor framework for rich text editing capabilities.
+    *   Extensions include: `StarterKit` (with basic formatting), `UnderlineExtension`, `OrderedList`, `VisualTagsExtension` (for custom tags), `TextColor`, and `TextHighlight`.
+    *   `@tiptap/extension-link` is available in the project for potential link functionalities.
+*   **Radix UI:** High-quality, accessible UI component primitives for building robust design systems.
+*   **Lucide React:** A comprehensive collection of beautiful and customizable open-source icons.
+*   **next-themes:** Simplifies theme switching (light/dark mode) implementation.
+*   **clsx & tailwind-merge:** Utilities for intelligently combining and overriding CSS class names.
 
-## 🛠 Tech Stack
+## Getting Started
 
-- **Framework**: Next.js 16 with App Router
-- **Styling**: Tailwind CSS v4 with custom theme system
-- **Rich Text Editor**: TipTap React (pure HTML output)
-- **Compression**: LZ-string for URL encoding
-- **Icons**: Lucide React
-- **TypeScript**: Full type safety
+Follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
 
-## 📁 Project Structure
+### Prerequisites
 
-```
-src/
-├── app/
-│   ├── globals.css          # Global styles with theme system
-│   ├── layout.tsx           # Root layout with theme provider
-│   └── page.tsx             # Main page with tab navigation
-├── components/
-│   ├── main-nav.tsx         # Navigation between flows
-│   ├── theme-provider.tsx   # Theme context and toggle
-│   ├── theme-toggle.tsx     # Theme toggle button
-│   ├── individual-status-form.tsx  # Status creation form
-│   ├── team-aggregation-form.tsx   # Team aggregation form
-│   └── rich-text-editor.tsx        # Rich text editor component
-└── lib/
-    ├── types.ts             # TypeScript type definitions
-    └── encoding.ts          # URL encoding/decoding utilities
-```
+*   Node.js (LTS version recommended)
+*   A package manager: npm, yarn, pnpm, or bun
 
-## 🎯 User Flows
+### Installation
 
-### Flow 1: Individual Status Creation
-1. Enter name and date
-2. Add one or more applications
-3. Write status updates with rich formatting
-4. Generate and copy shareable link
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/statusgenrator.git # Replace with your actual repository URL
+    cd statusgenrator
+    ```
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    # or
+    yarn install
+    # or
+    pnpm install
+    # or
+    bun install
+    ```
 
-### Flow 2: Team Status Aggregation
-1. Paste multiple status links (one per line)
-2. Choose merge mode (app-wise vs person-wise)
-3. Generate formatted team report
-4. Copy or download the final output
+### Running the Development Server
 
-## 🔧 Development
+To run the application in development mode:
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
 npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Run linting
-npm run lint
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## 📊 Data Model
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. The page will auto-update as you make changes.
 
-### StatusPayload (URL-encoded)
-```typescript
-{
-  v: 1,              // schema version
-  name: string,      // "Rashid"
-  date: string,      // "2026-01-08"
-  apps: AppStatus[]  // multiple apps
-}
-```
+### Building for Production
 
-### AppStatus
-```typescript
-{
-  app: string;       // "Payments"
-  content: string;   // HTML content from TipTap rich text editor
-}
-```
-
-## 🔄 Merge Modes
-
-### Application-wise (Default)
-```html
-<h3>Payments Application:</h3>
-<ul>
-  <li><strong>Rashid:</strong> UPI validation fix deployed</li>
-  <li><strong>Aman:</strong> Load testing completed</li>
-</ul>
-
-<h3>Auth Service:</h3>
-<ul>
-  <li><strong>Rashid:</strong> Token refresh bug fixed</li>
-</ul>
-```
-
-### Person-wise
-```html
-<h3>Rashid:</h3>
-<ul>
-  <li><strong>Payments:</strong> UPI validation fix deployed</li>
-  <li><strong>Auth:</strong> Token refresh bug fixed</li>
-</ul>
-
-<h3>Aman:</h3>
-<ul>
-  <li><strong>Payments:</strong> Load testing completed</li>
-</ul>
-```
-
-## 📏 Validation Rules
-
-- Max content per app: 600 characters (based on plain text length)
-- Max encoded URL size: 1,800 characters
-- One payload per person per day
-- Rich text formatting: HTML output with bold, italic, underline, strikethrough, bullet lists, numbered lists
-
-## 🌙 Theme System
-
-- Light/Dark mode toggle
-- System preference detection
-- Persistent theme storage
-- CSS custom properties for theming
-
-## 🚀 Deployment
-
-Deploy to any static hosting service (Vercel, Netlify, etc.) since it's 100% frontend.
+To build the application for production:
 
 ```bash
 npm run build
-# Deploy the .next/static and .next/serverless folders
+# or
+yarn build
+# or
+pnpm build
+# or
+bun build
 ```
 
-## 🤝 Contributing
+This command compiles the application into an optimized build located in the `.next` folder.
 
-This is a focused MVP implementation. For enhancements, consider:
-- Additional rich text formatting options
-- Better mobile responsiveness
-- Export to different formats (PDF, etc.)
-- Status history/timeline features
+### Running in Production
 
-## 📄 License
+To start the production server after building:
 
-MIT License - feel free to use and modify for your own privacy-first tools.
+```bash
+npm run start
+# or
+yarn start
+# or
+pnpm start
+# or
+bun start
+```
+
+## Usage
+
+*   **Create Status (`/create-status`):** Navigate to this page to access the rich text editor. Here, you can compose new status reports using all available formatting options, insert custom tags, and include relevant links by typing them directly into the editor.
+*   **Merge Team Status (`/merge-team-status`):** Visit this page to view aggregated status reports from your team. This interface allows you to review and annotate reports, utilizing text coloring and highlighting features to draw attention to critical updates or changes.
+
+---

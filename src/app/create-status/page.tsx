@@ -29,9 +29,7 @@ export default function CreateStatusPage() {
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Built with Next.js, Tailwind CSS, and LZ compression
-              </p>
+
             </div>
             <div className="flex items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
