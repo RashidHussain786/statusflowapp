@@ -13,6 +13,7 @@ export function IndividualStatusForm() {
     generatedUrls,
     copied,
     error,
+    tagError,
     currentUrlLength,
     statusLink, setStatusLink,
     addApp, removeApp, toggleAppExpansion, updateApp, copyToClipboard,
@@ -96,7 +97,7 @@ export function IndividualStatusForm() {
             <button
               onClick={copyToClipboard}
               disabled={!isValid || generatedUrls.length === 0 || !name.trim()}
-              title={!name.trim() ? 'Please enter your name first' : generatedUrls.length > 0 ? `Copy ${generatedUrls.length > 1 ? 'all shareable links' : 'shareable link'}` : 'Complete the form to generate link'}
+              title={tagError || (!name.trim() ? 'Please enter your name first' : generatedUrls.length > 0 ? `Copy ${generatedUrls.length > 1 ? 'all shareable links' : 'shareable link'}` : 'Complete the form to generate link')}
               className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${!isValid || generatedUrls.length === 0 || !name.trim()
                 ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer'
@@ -107,6 +108,12 @@ export function IndividualStatusForm() {
             </button>
           </div>
         </div>
+
+        {tagError && (
+          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
+            <p className="text-sm text-amber-600 font-medium">{tagError}</p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
