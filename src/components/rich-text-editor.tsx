@@ -9,6 +9,7 @@ import OrderedList from '@tiptap/extension-ordered-list';
 import { STATUS_TAGS, getAllTags, addCustomTag, isTagLabelTaken, removeCustomTag, hexToRgba } from '@/lib/tags';
 import { VisualTagsExtension } from '@/lib/visual-tags-plugin';
 import { TextColor, TextHighlight } from '@/lib/text-styling-extensions';
+import { ListItemIdExtension } from '@/lib/tiptap-list-item-id-extension';
 
 interface RichTextEditorProps {
   value: string;
@@ -20,6 +21,7 @@ interface RichTextEditorProps {
   showTags?: boolean;
   onShowTagsChange?: (show: boolean) => void;
   enableTextStyling?: boolean;
+  owner?: string;
 }
 
 export interface EditorRef {
@@ -36,6 +38,7 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   showTags = true,
   onShowTagsChange,
   enableTextStyling = false,
+  owner = '',
 }, ref) => {
   const [showTagSelector, setShowTagSelector] = useState(false);
   const [showCreateTag, setShowCreateTag] = useState(false);
@@ -61,6 +64,9 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
       UnderlineExtension,
       OrderedList,
       VisualTagsExtension,
+      ListItemIdExtension.configure({
+        currentOwner: owner,
+      }),
       ...(enableTextStyling ? [TextColor, TextHighlight] : []),
     ],
     content: '',
@@ -72,6 +78,25 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
       },
     },
   }, [enableTextStyling]);
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      // Update the extension option dynamically
+      // Note: TipTap extension options are usually static, but some can be updated.
+      // For 'listItemId', we need to check if we can update the storage or reconfigure.
+      // Standard Configure usually requires a reload.
+      // BUT, we can access options via extensionStorage if we exposed it, or re-inject.
+      // Actually, simpler: We can't easily reconfigure 'currentOwner' on the fly for the Plugin *props*.
+      // The Plugin is created in `addProseMirrorPlugins`.
+      // To support dynamic updates, the Plugin should read from a shared state or the editor object.
+      // Let's rely on re-creating the editor if owner changes? No, that loses focus/state.
+      // Better: We can store 'currentOwner' in the editor.storage.listItemId.currentOwner
+      // and have the Plugin read from there!
+      if ((editor as any).storage.listItemId) {
+        (editor as any).storage.listItemId.currentOwner = owner;
+      }
+    }
+  }, [editor, owner]);
 
   useEffect(() => {
     if (editor && !editor.isDestroyed && value) {
@@ -311,11 +336,9 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
                   className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 whitespace-nowrap"
                 >
                   <span
-                    className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded shrink-0"
+                    className="inline-flex items-center px-1 py-0.5 text-xs font-semibold shrink-0"
                     style={{
-                      backgroundColor: tag.bgColor,
                       color: tag.color,
-                      border: `1px solid ${hexToRgba(tag.color, 0.1)}`
                     }}
                   >
                     {tag.label}

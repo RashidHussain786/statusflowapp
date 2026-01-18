@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { encodeStatus, validateAndSplitPayload, decodeStatus, URL_PREFIX, extractStatusUrls } from '../lib/encoding';
+import { validateAndSplitPayload, decodeStatus, extractStatusUrls } from '../lib/encoding';
 import { StatusPayload, AppStatus } from '../lib/types';
-import { loadCustomTags } from '../lib/tags';
+import { getAllTags, addCustomTag, isTagLabelTaken } from '../lib/tags';
+import { saveDailyStatus, getLatestStatusDate, getAppsForDate } from '../lib/indexeddb';
 
 export function useIndividualStatusForm() {
   const [name, setName] = useState('');
@@ -30,8 +31,7 @@ export function useIndividualStatusForm() {
         name: name.trim(),
         date,
         apps: validApps,
-        // Don't include customTags in URL to keep it smaller
-        // Tags will be resolved from localStorage when merging
+        customTags: getAllTags().filter(t => t.isCustom)
       };
 
       const result = validateAndSplitPayload(payload);
@@ -105,6 +105,20 @@ export function useIndividualStatusForm() {
       setName(first.name ?? '');
       const today = new Date().toISOString().split('T')[0];
       setDate(today);
+
+      // Load Custom Tags from Payload if present (handling persistence across shares)
+      payloads.forEach(p => {
+        if (p.customTags && Array.isArray(p.customTags)) {
+          p.customTags.forEach(tag => {
+            if (tag && tag.label && tag.color) {
+              // Only add if not exists
+              if (!isTagLabelTaken(tag.label)) {
+                addCustomTag(tag.label, tag.color);
+              }
+            }
+          });
+        }
+      });
 
       // Merge applications from all payloads for this person.
       // This handles cases where the original status was split into
@@ -183,7 +197,7 @@ export function useIndividualStatusForm() {
         });
         // Ensure at least one app is expanded if it's not empty
         if (updatedExpanded.size === 0 && apps.length > 1) {
-            updatedExpanded.add(0);
+          updatedExpanded.add(0);
         }
         return updatedExpanded;
       });
@@ -253,6 +267,16 @@ export function useIndividualStatusForm() {
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+
+      // Save snapshot to IndexedDB
+      const payload: StatusPayload = {
+        v: 2,
+        name: name.trim(),
+        date,
+        apps: apps.filter(app => app.app.trim() && app.content.trim()),
+      };
+      saveDailyStatus(payload).catch(err => console.error('Failed to save snapshot:', err));
+
     } catch (err) {
       // Fallback for older browsers or if Clipboard API fails
       console.warn("Rich text copy failed, falling back to plain text copy.", err);
@@ -275,7 +299,43 @@ export function useIndividualStatusForm() {
 
       document.body.removeChild(textArea);
     }
-  }, [generatedUrls, name, date]);
+  }, [generatedUrls, name, date, apps]);
+
+  const loadYesterdayStatus = useCallback(async () => {
+    try {
+      const latestDate = await getLatestStatusDate();
+      if (!latestDate) {
+        alert('No previous status found.');
+        return;
+      }
+
+      const payloads = await getAppsForDate(latestDate);
+      if (payloads.length === 0) return;
+
+      // Assuming all payloads on this date probably belong to the same user "session"
+      // We take the name from the first one
+      setName(payloads[0].name);
+
+      // We set the date to TODAY, because we are "loading yesterday's status" to write TODAY's report
+      // Wait, "Continue yesterday" usually means "Load what I wrote yesterday so I can edit it" or "Load yesterday's structure"?
+      // Use requests "load yesterday". Usually means "Load the content from yesterday".
+      // But if I load yesterday's content, the date should probably be today (for the new report) or yesterday?
+      // If I'm "continuing", I usually want today's date but yesterday's *items* (maybe to mark them as done).
+      // Let's default to TODAY's date, but populate with YESTERDAY's content.
+      // That seems most useful for a "daily standup" workflow where you copy-paste-modify.
+      setDate(new Date().toISOString().split('T')[0]);
+
+      const newApps: AppStatus[] = payloads.flatMap(p => p.apps);
+      setApps(newApps);
+
+      // Expand all
+      setExpandedApps(new Set(newApps.map((_, i) => i)));
+
+    } catch (err) {
+      console.error('Failed to load yesterday status:', err);
+      alert('Failed to load status.');
+    }
+  }, []);
 
   const isValid = name.trim() && apps.some(app => app.app.trim() && app.content.trim()) && !error;
 
@@ -291,5 +351,6 @@ export function useIndividualStatusForm() {
     statusLink, setStatusLink,
     addApp, removeApp, toggleAppExpansion, updateApp, copyToClipboard,
     isValid,
+    loadYesterdayStatus,
   };
 }

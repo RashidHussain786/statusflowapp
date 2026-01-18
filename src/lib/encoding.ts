@@ -307,41 +307,86 @@ function splitApplicationContent(app: AppStatus, payload: StatusPayload): string
   return parts;
 }
 
+
 function splitHtmlContent(html: string): string[] {
-  // Split by paragraphs and other block elements
-  const chunks = html
-    .split(/(<\/?p[^>]*>|<br[^>]*>|<div[^>]*>|<h[1-6][^>]*>)/)
-    .filter(chunk => chunk.trim().length > 0);
+  // Client-side: Use DOMParser for smart splitting
+  if (typeof window !== 'undefined' && typeof DOMParser !== 'undefined') {
+    try {
+      const parser = new DOMParser();
+      // Parse as body to handle partials
+      const doc = parser.parseFromString(html, 'text/html');
+      const chunks: string[] = [];
 
-  // If no natural breaks, split by character count
-  if (chunks.length <= 1) {
-    const maxChunkSize = 500; // Characters per chunk
-    const textChunks: string[] = [];
-    let remaining = html;
-
-    while (remaining.length > maxChunkSize) {
-      // Find a good break point (end of word/sentence)
-      let breakPoint = maxChunkSize;
-      for (let i = Math.min(maxChunkSize, remaining.length - 1); i > maxChunkSize - 100; i--) {
-        if (remaining[i] === ' ' || remaining[i] === '.' || remaining[i] === '\n') {
-          breakPoint = i + 1;
-          break;
+      const traverse = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent?.trim();
+          if (text) chunks.push(node.textContent!); // Keep whitespace for text nodes if needed, or outerHTML equivalent
+          return;
         }
-      }
 
-      textChunks.push(remaining.substring(0, breakPoint));
-      remaining = remaining.substring(breakPoint);
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as Element;
+          const tagName = el.tagName.toLowerCase();
+
+          // Atomic blocks: These should stay together if possible
+          if (tagName === 'li' || tagName === 'p' || tagName === 'h1' || tagName === 'h2' || tagName === 'h3' || tagName === 'div') {
+            chunks.push(el.outerHTML);
+          } else if (tagName === 'ul' || tagName === 'ol') {
+            // Lists: Split into Open + Children + Close
+            // Construct open tag manually to avoid closing it
+            let openTag = `<${tagName}`;
+            Array.from(el.attributes).forEach(attr => {
+              openTag += ` ${attr.name}="${attr.value}"`;
+            });
+            openTag += '>';
+            chunks.push(openTag);
+
+            // Recurse children
+            Array.from(el.childNodes).forEach(child => traverse(child));
+
+            // Close tag
+            chunks.push(`</${tagName}>`);
+          } else if (tagName === 'body') {
+            Array.from(el.childNodes).forEach(child => traverse(child));
+          } else {
+            // Other tags (br, span, etc) - treat as atomic or recurse?
+            // Br is atomic. Span might be atomic inside a P, but top level?
+            // Fallback: atomic.
+            chunks.push(el.outerHTML);
+          }
+        }
+      };
+
+      traverse(doc.body);
+
+      // Filter out empty chunks
+      return chunks.filter(c => c && c.trim().length > 0);
+
+    } catch (e) {
+      console.warn("DOM parsing failed, falling back to regex", e);
     }
-
-    if (remaining) {
-      textChunks.push(remaining);
-    }
-
-    return textChunks;
   }
 
-  return chunks;
+  // Fallback / SSR: Regex splitting (Improved)
+  // Split by closing tags of blocks
+  return html
+    .split(/(<\/p>|<\/li>|<\/h[1-6]>|<\/div>|<br[^>]*>)/)
+    .filter(chunk => chunk.trim().length > 0)
+    .reduce((acc: string[], chunk) => {
+      // Re-attach the separator if it was split
+      if (chunk.match(/^(<\/p>|<\/li>|<\/h[1-6]>|<\/div>|<br[^>]*>)$/)) {
+        if (acc.length > 0) {
+          acc[acc.length - 1] += chunk;
+        } else {
+          acc.push(chunk);
+        }
+      } else {
+        acc.push(chunk);
+      }
+      return acc;
+    }, []);
 }
+
 
 // Keep the old function for backward compatibility
 export function validatePayload(payload: StatusPayload): { valid: boolean; error?: string } {

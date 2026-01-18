@@ -17,6 +17,7 @@ export function IndividualStatusForm() {
     statusLink, setStatusLink,
     addApp, removeApp, toggleAppExpansion, updateApp, copyToClipboard,
     isValid,
+    loadYesterdayStatus,
   } = useIndividualStatusForm();
 
   return (
@@ -73,6 +74,13 @@ export function IndividualStatusForm() {
               onChange={(e) => setDate(e.target.value)}
               className="px-3 py-1.5 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
             />
+            <button
+              onClick={loadYesterdayStatus}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
+              title="Load status from the last saved date"
+            >
+              Load Previous
+            </button>
             <button
               onClick={copyToClipboard}
               disabled={!isValid || generatedUrls.length === 0 || !name.trim()}
