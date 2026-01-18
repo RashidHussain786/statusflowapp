@@ -1,299 +1,39 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { Copy, Check, Download } from 'lucide-react';
-import { extractStatusUrls, decodeMultipleStatuses, decodeStatus, URL_PREFIX } from '@/lib/encoding';
-import { MergeMode, NormalizedEntry } from '@/lib/types';
-import { RichTextEditor, EditorRef } from './rich-text-editor';
+import { Copy, Check, ChevronDown } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { RichTextEditor } from './rich-text-editor';
+import { useTeamAggregationForm } from '../hooks/use-team-aggregation-form';
+import { MergeMode } from '../lib/types';
 
 export function TeamAggregationForm() {
-  const [urlsText, setUrlsText] = useState('');
-  const [mergeMode, setMergeMode] = useState<MergeMode>('app-wise');
-  const [selectedApp, setSelectedApp] = useState<string>('all');
-  const [copied, setCopied] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [editableContent, setEditableContent] = useState('');
-  const [showTagsInMerge, setShowTagsInMerge] = useState(false);
-  const editorRef = useRef<EditorRef>(null);
+  const {
+    urlsText, setUrlsText,
+    mergeMode, setMergeMode,
+    selectedApp, setSelectedApp,
+    copied,
+    editableContent, setEditableContent,
+    showTagsInMerge, setShowTagsInMerge,
+    editorRef,
+    processedData,
+    generateOutput,
+    copyToClipboard,
+    hasValidUrls,
+    hasOutput,
+  } = useTeamAggregationForm();
 
-  const previewRef = useRef<HTMLDivElement>(null);
-
-  const processedData = useMemo(() => {
-    const fragments = extractStatusUrls(urlsText);
-    const entries = decodeMultipleStatuses(fragments);
-    const invalidLines = urlsText.split('\n').filter(line => line.trim() && !line.includes(URL_PREFIX));
-
-    const appMap = new Map<string, string>();
-    entries.forEach(entry => {
-      const lower = entry.app.toLowerCase().trim();
-      if (!appMap.has(lower)) {
-        appMap.set(lower, entry.app);
-      }
-    });
-    const uniqueApps = Array.from(appMap.values()).sort((a, b) => a.localeCompare(b));
-
-    return { fragments, entries, invalidLines, uniqueApps };
-  }, [urlsText]);
-
-  const cleanContentHtml = (html: string, showTags: boolean = true): string => {
-    if (!html) return '';
-
-    let cleaned = html
-      .replace(/<\/?p[^>]*>/gi, '')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .trim();
-
-    if (!showTags) {
-      // Remove tag labels completely when not showing tags
-      cleaned = cleaned.replace(/\[[A-Z\s]+\]\s*/g, '');
-    }
-    // When showTags is true, keep the [TAG] patterns as-is
-    // The VisualTagsExtension will style them in the editor
-
-    if (!cleaned.trim()) return '';
-
-    if (!cleaned.includes('<') && !cleaned.includes('>')) {
-      cleaned = `<span>${cleaned}</span>`;
-    }
-
-    return cleaned;
-  };
-
-  const generateOutput = useMemo(() => {
-    const { entries } = processedData;
-
-    if (entries.length === 0) return '';
-
-    const filteredEntries = selectedApp === 'all'
-      ? entries
-      : entries.filter(entry => entry.app.toLowerCase().trim() === selectedApp.toLowerCase().trim());
-
-    if (filteredEntries.length === 0) return '';
-
-    if (mergeMode === 'app-wise') {
-      const appGroups = filteredEntries.reduce((acc, entry) => {
-        const appKey = entry.app.trim();
-        const canonicalKey = Object.keys(acc).find(
-          key => key.toLowerCase() === appKey.toLowerCase()
-        ) || appKey;
-
-        if (!acc[canonicalKey]) acc[canonicalKey] = [];
-        acc[canonicalKey].push(entry);
-        return acc;
-      }, {} as Record<string, NormalizedEntry[]>);
-
-      return Object.entries(appGroups)
-        .map(([app, appEntries]) => {
-          const personUpdates = appEntries
-            .map(entry => `<li><strong>${entry.name}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
-            .join('');
-
-          return `<h3>${app} Application:</h3><ul>${personUpdates}</ul>`;
-        })
-        .join('');
-    } else {
-      const personGroups = filteredEntries.reduce((acc, entry) => {
-        if (!acc[entry.name]) acc[entry.name] = [];
-        acc[entry.name].push(entry);
-        return acc;
-      }, {} as Record<string, NormalizedEntry[]>);
-
-      return Object.entries(personGroups)
-        .map(([person, personEntries]) => {
-          const appUpdates = personEntries
-            .map(entry => `<li><strong>${entry.app}:</strong> ${cleanContentHtml(entry.content, showTagsInMerge)}</li>`)
-            .join('');
-
-          return `<h3>${person}:</h3><ul>${appUpdates}</ul>`;
-        })
-        .join('');
-    }
-  }, [processedData, mergeMode, selectedApp, showTagsInMerge]);
+  const [showAppSelector, setShowAppSelector] = useState(false);
+  const appSelectorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (generateOutput) {
-      setEditableContent(generateOutput);
-    }
-  }, [generateOutput]);
-
-  const getPlainText = (html: string): string => {
-    if (typeof document === 'undefined') return '';
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-
-    const convertToText = (element: Element, indent = ''): string => {
-      let result = '';
-
-      for (const child of element.children) {
-        if (child.tagName === 'H3') {
-          const text = child.textContent?.trim();
-          if (text) {
-            result += `\n${indent}${text}:\n`;
-          }
-        } else if (child.tagName === 'UL') {
-          for (const li of child.children) {
-            if (li.tagName === 'LI') {
-              result += convertToText(li, indent);
-            }
-          }
-        } else if (child.tagName === 'LI') {
-          const hasNestedList = child.querySelector('ul, ol');
-          if (hasNestedList) {
-            let personName = '';
-            let statusList = '';
-
-            for (const liChild of child.children) {
-              if (liChild.tagName === 'STRONG') {
-                personName = liChild.textContent?.trim() || '';
-              } else if (liChild.tagName === 'UL' || liChild.tagName === 'OL') {
-                statusList = convertToText(liChild, indent);
-              } else {
-                const text = liChild.textContent?.trim();
-                if (text) {
-                  personName += (personName ? ' ' : '') + text;
-                }
-              }
-            }
-
-            if (personName) {
-              result += `${indent}${personName}:\n${statusList}`;
-            } else {
-              result += statusList;
-            }
-          } else {
-            const itemText = convertToText(child, '').trim();
-            if (itemText) {
-              result += `${indent}${itemText}\n`;
-            }
-          }
-        } else if (child.tagName === 'P') {
-          const text = child.textContent?.trim();
-          if (text) {
-            result += `${indent}${text}\n\n`;
-          }
-        } else if (child.tagName === 'STRONG' || child.tagName === 'B') {
-          const text = child.textContent?.trim();
-          if (text) {
-            result += `**${text}** `;
-          }
-        } else if (child.tagName === 'EM' || child.tagName === 'I') {
-          const text = child.textContent?.trim();
-          if (text) {
-            result += `*${text}* `;
-          }
-        } else {
-          const text = child.textContent?.trim();
-          if (text) {
-            result += `${indent}${text} `;
-          }
-        }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (appSelectorRef.current && !appSelectorRef.current.contains(event.target as Node)) {
+        setShowAppSelector(false);
       }
-
-      return result;
     };
-
-    return convertToText(tempDiv)
-      .trim()
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/^\n+/, '')
-      .replace(/\n+$/, '');
-  };
-
-  const removeStatusTags = (text: string): string => {
-    return text.replace(/\[[A-Z\s]+\]\s*/g, '');
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      const editorElement = document.querySelector('.ProseMirror') as HTMLElement | null;
-      if (editorElement) {
-        let elementToCopy: HTMLElement = editorElement;
-        let tempContainer: HTMLElement | null = null;
-        if (!showTagsInMerge) {
-          tempContainer = document.createElement('div');
-          tempContainer.style.position = 'fixed';
-          tempContainer.style.left = '-999999px';
-          tempContainer.style.top = '-999999px';
-
-          const cloned = editorElement.cloneNode(true) as HTMLElement;
-          cloned.querySelectorAll('.visual-tag').forEach(el => el.remove());
-
-          tempContainer.appendChild(cloned);
-          document.body.appendChild(tempContainer);
-          elementToCopy = cloned;
-        }
-
-        const range = document.createRange();
-        range.selectNodeContents(elementToCopy);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-
-        const successful = document.execCommand('copy');
-        selection?.removeAllRanges();
-
-        if (tempContainer) {
-          document.body.removeChild(tempContainer);
-        }
-
-        if (successful) {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-          return;
-        }
-      }
-
-      let textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
-      if (!showTagsInMerge) {
-        textToCopy = removeStatusTags(textToCopy);
-      }
-      const textArea = document.createElement('textarea');
-      textArea.value = textToCopy;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-
-      if (successful) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    } catch (err) {
-      console.error('Copy error:', err);
-      try {
-        let textToCopy = editorRef.current ? editorRef.current.getText() : getPlainText(editableContent);
-        if (!showTagsInMerge) {
-          textToCopy = removeStatusTags(textToCopy);
-        }
-        await navigator.clipboard.writeText(textToCopy);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (clipboardErr) {
-        console.error('Failed to copy text:', clipboardErr);
-      }
-    }
-  };
-
-  const downloadAsFile = () => {
-    const blob = new Blob([generateOutput], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `team-status-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const hasValidUrls = processedData.fragments.length > 0;
-  const hasOutput = generateOutput.trim().length > 0;
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="max-w-none">
@@ -333,26 +73,54 @@ export function TeamAggregationForm() {
       </div>
 
       <div className="bg-card border border-border rounded-lg p-4 2xl:p-6 shadow-sm mb-6 2xl:mb-8">
-        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0 mb-3 2xl:mb-4">
           <h2 className="text-base 2xl:text-lg font-semibold text-card-foreground">Team Status Report</h2>
           {hasOutput && (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-foreground">View:</label>
-                  <select
-                    value={selectedApp}
-                    onChange={(e) => setSelectedApp(e.target.value)}
-                    className="px-2 py-1 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                  >
-                    <option value="all">All Applications</option>
-                    {processedData.uniqueApps.map(app => (
-                      <option key={app} value={app}>{app}</option>
-                    ))}
-                  </select>
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                <div className="flex flex-row items-center gap-3 w-full md:w-auto relative" ref={appSelectorRef}>
+                  <label className="text-sm font-medium text-foreground whitespace-nowrap">View:</label>
+
+                  <div className="relative flex-1 md:flex-none w-full md:w-auto min-w-[200px]">
+                    <button
+                      type="button"
+                      onClick={() => setShowAppSelector(!showAppSelector)}
+                      className="w-full md:w-auto flex items-center justify-between px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground hover:bg-accent transition-colors"
+                    >
+                      <span>{selectedApp === 'all' ? 'All Applications' : selectedApp}</span>
+                      <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                    </button>
+
+                    {showAppSelector && (
+                      <div className="absolute top-full left-0 w-full mt-1 bg-popover border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                        <button
+                          key="all"
+                          onClick={() => {
+                            setSelectedApp('all');
+                            setShowAppSelector(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${selectedApp === 'all' ? 'bg-accent font-medium' : ''}`}
+                        >
+                          All Applications
+                        </button>
+                        {processedData.uniqueApps.map(app => (
+                          <button
+                            key={app}
+                            onClick={() => {
+                              setSelectedApp(app);
+                              setShowAppSelector(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${selectedApp === app ? 'bg-accent font-medium' : ''}`}
+                          >
+                            {app}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 justify-center md:justify-start bg-muted/30 md:bg-transparent p-2 md:p-0 rounded-md">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
@@ -381,17 +149,10 @@ export function TeamAggregationForm() {
               <div className="flex gap-2">
                 <button
                   onClick={copyToClipboard}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm"
+                  className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? 'Copied!' : 'Copy Report'}
-                </button>
-                <button
-                  onClick={downloadAsFile}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-input rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  Download
                 </button>
               </div>
             </div>

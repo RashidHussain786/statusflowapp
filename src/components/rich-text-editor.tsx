@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, forwardRef, useImperativeHandle, useState, useRef } from 'react';
-import { Bold, Italic, List, ListOrdered, Strikethrough, Underline, Tag, Plus, X } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Strikethrough, Underline, Tag, Plus, X, Palette } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
@@ -9,6 +9,7 @@ import OrderedList from '@tiptap/extension-ordered-list';
 import { STATUS_TAGS, getAllTags, addCustomTag, isTagLabelTaken, removeCustomTag, hexToRgba } from '@/lib/tags';
 import { VisualTagsExtension } from '@/lib/visual-tags-plugin';
 import { TextColor, TextHighlight } from '@/lib/text-styling-extensions';
+import { ListItemIdExtension } from '@/lib/tiptap-list-item-id-extension';
 
 interface RichTextEditorProps {
   value: string;
@@ -20,6 +21,7 @@ interface RichTextEditorProps {
   showTags?: boolean;
   onShowTagsChange?: (show: boolean) => void;
   enableTextStyling?: boolean;
+  owner?: string;
 }
 
 export interface EditorRef {
@@ -36,13 +38,16 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
   showTags = true,
   onShowTagsChange,
   enableTextStyling = false,
+  owner = '',
 }, ref) => {
   const [showTagSelector, setShowTagSelector] = useState(false);
   const [showCreateTag, setShowCreateTag] = useState(false);
   const [newTagLabel, setNewTagLabel] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
+  const [showColorSelector, setShowColorSelector] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+  const colorDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleUpdate = useCallback(({ editor }: any) => {
     setTimeout(() => {
@@ -61,6 +66,9 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
       UnderlineExtension,
       OrderedList,
       VisualTagsExtension,
+      ListItemIdExtension.configure({
+        currentOwner: owner,
+      }),
       ...(enableTextStyling ? [TextColor, TextHighlight] : []),
     ],
     content: '',
@@ -72,6 +80,14 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
       },
     },
   }, [enableTextStyling]);
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      if ((editor as any).storage.listItemId) {
+        (editor as any).storage.listItemId.currentOwner = owner;
+      }
+    }
+  }, [editor, owner]);
 
   useEffect(() => {
     if (editor && !editor.isDestroyed && value) {
@@ -130,6 +146,9 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
     const handleClickOutside = (event: MouseEvent) => {
       if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target as Node)) {
         setShowTagSelector(false);
+      }
+      if (colorDropdownRef.current && !colorDropdownRef.current.contains(event.target as Node)) {
+        setShowColorSelector(false);
       }
     };
 
@@ -234,72 +253,150 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
             title="Create new tag"
           >
             <Plus className="h-3 w-3" />
-            <span className="hidden sm:inline">New Tag</span>
+            <span className="inline">New Tag</span>
           </button>
 
           {enableTextStyling && (
-            <div className="flex items-center gap-1 2xl:gap-2 ml-1 2xl:ml-2 border-l border-border pl-1 2xl:pl-2">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">Text:</span>
-                <div className="grid grid-cols-3 gap-1">
-                  {['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#111827'].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => editor?.chain().focus().setMark('textColor', { color: c }).run()}
-                      className="w-4 h-4 rounded border border-border"
-                      style={{ backgroundColor: c }}
-                      title={`Text ${c}`}
-                    />
-                  ))}
-                </div>
-                <input
-                  type="color"
-                  onChange={(e) => editor?.chain().focus().setMark('textColor', { color: e.target.value }).run()}
-                  className="w-6 h-6 border border-input rounded cursor-pointer"
-                  title="Text Color"
-                />
+            <>
+              {/* Mobile: Palette Popover */}
+              <div className="relative ml-1 border-l border-border pl-1 sm:hidden" ref={colorDropdownRef}>
                 <button
                   type="button"
-                  onClick={() => editor?.chain().focus().unsetMark('textColor').run()}
-                  className="p-1 rounded hover:bg-accent"
-                  title="Remove Text Color"
+                  onClick={() => setShowColorSelector(!showColorSelector)}
+                  className={`p-1.5 rounded-md transition-colors ${showColorSelector
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent hover:text-accent-foreground'
+                    }`}
+                  title="Text Colors & Highlights"
                 >
-                  <X className="h-3 w-3 text-muted-foreground" />
+                  <Palette className="h-4 w-4" />
                 </button>
+
+                {showColorSelector && (
+                  <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 p-3 min-w-[200px]">
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-muted-foreground">Text Color</span>
+                        <button
+                          type="button"
+                          onClick={() => editor?.chain().focus().unsetMark('textColor').run()}
+                          className="text-[10px] text-destructive hover:underline"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {['#000000', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => {
+                              editor?.chain().focus().setMark('textColor', { color: c }).run();
+                              setShowColorSelector(false);
+                            }}
+                            className="w-6 h-6 rounded-full border border-border shadow-sm hover:scale-110 transition-transform"
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-muted-foreground">Highlight</span>
+                        <button
+                          type="button"
+                          onClick={() => editor?.chain().focus().unsetMark('textHighlight').run()}
+                          className="text-[10px] text-destructive hover:underline"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {['#fff59d', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fde68a', '#c7d2fe', '#e5e7eb'].map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => {
+                              editor?.chain().focus().setMark('textHighlight', { backgroundColor: c }).run();
+                              setShowColorSelector(false);
+                            }}
+                            className="w-6 h-6 rounded-full border border-border shadow-sm hover:scale-110 transition-transform"
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">Highlight:</span>
-                <div className="grid grid-cols-3 gap-1">
-                  {['#fff59d', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff'].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => editor?.chain().focus().setMark('textHighlight', { backgroundColor: c }).run()}
-                      className="w-4 h-4 rounded border border-border"
-                      style={{ backgroundColor: c }}
-                      title={`Highlight ${c}`}
-                    />
-                  ))}
+              {/* Desktop: Inline Controls (Restored) */}
+              <div className="hidden sm:flex items-center gap-1 2xl:gap-2 ml-1 2xl:ml-2 border-l border-border pl-1 2xl:pl-2">
+                <div className="flex items-center gap-1">
+                  <span className="hidden sm:inline text-xs text-muted-foreground">Text:</span>
+                  <div className="grid grid-cols-3 gap-1">
+                    {['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#111827'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => editor?.chain().focus().setMark('textColor', { color: c }).run()}
+                        className="w-4 h-4 rounded border border-border"
+                        style={{ backgroundColor: c }}
+                        title={`Text ${c}`}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    onChange={(e) => editor?.chain().focus().setMark('textColor', { color: e.target.value }).run()}
+                    className="w-6 h-6 border border-input rounded cursor-pointer"
+                    title="Text Color"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => editor?.chain().focus().unsetMark('textColor').run()}
+                    className="p-1 rounded hover:bg-accent"
+                    title="Remove Text Color"
+                  >
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </button>
                 </div>
-                <input
-                  type="color"
-                  defaultValue="#ffff00"
-                  onChange={(e) => editor?.chain().focus().setMark('textHighlight', { backgroundColor: e.target.value }).run()}
-                  className="w-6 h-6 border border-input rounded cursor-pointer"
-                  title="Highlight Color"
-                />
-                <button
-                  type="button"
-                  onClick={() => editor?.chain().focus().unsetMark('textHighlight').run()}
-                  className="p-1 rounded hover:bg-accent"
-                  title="Remove Highlight"
-                >
-                  <X className="h-3 w-3 text-muted-foreground" />
-                </button>
+
+                <div className="flex items-center gap-1">
+                  <span className="hidden sm:inline text-xs text-muted-foreground">Highlight:</span>
+                  <div className="grid grid-cols-3 gap-1">
+                    {['#fff59d', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => editor?.chain().focus().setMark('textHighlight', { backgroundColor: c }).run()}
+                        className="w-4 h-4 rounded border border-border"
+                        style={{ backgroundColor: c }}
+                        title={`Highlight ${c}`}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    defaultValue="#ffff00"
+                    onChange={(e) => editor?.chain().focus().setMark('textHighlight', { backgroundColor: e.target.value }).run()}
+                    className="w-6 h-6 border border-input rounded cursor-pointer"
+                    title="Highlight Color"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => editor?.chain().focus().unsetMark('textHighlight').run()}
+                    className="p-1 rounded hover:bg-accent"
+                    title="Remove Highlight"
+                  >
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </div>
               </div>
-            </div>
+            </>
           )}
 
           {showTagSelector && (
@@ -311,16 +408,14 @@ export const RichTextEditor = forwardRef<EditorRef, RichTextEditorProps>(({
                   className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 whitespace-nowrap"
                 >
                   <span
-                    className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded shrink-0"
+                    className="inline-flex items-center px-1 py-0.5 text-xs font-semibold shrink-0"
                     style={{
-                      backgroundColor: tag.bgColor,
                       color: tag.color,
-                      border: `1px solid ${hexToRgba(tag.color, 0.1)}`
                     }}
                   >
                     {tag.label}
                   </span>
-                  <span className="text-muted-foreground truncate">{tag.description}</span>
+                  <span className="hidden sm:inline text-muted-foreground truncate">{tag.description}</span>
                   {tag.isCustom && (
                     <span
                       onClick={(e) => handleDeleteTag(tag.id, e)}

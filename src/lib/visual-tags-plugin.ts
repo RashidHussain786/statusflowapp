@@ -65,15 +65,9 @@ export const VisualTagsExtension = Extension.create({
                     Decoration.inline(start, end, {
                       class: `visual-tag tag-${tag.id.toLowerCase()}`,
                       style: `
-                        background-color: ${tag.bgColor};
                         color: ${tag.color};
-                        padding: 0.125rem 0.25rem;
-                        border-radius: 0.25rem;
-                        border: 1px solid ${hexToRgba(tag.color, 0.25)};
-                        font-weight: 500;
-                        font-size: 0.75rem;
-                        display: inline-block;
-                        margin: 0 0.125rem;
+                        font-weight: 600;
+                        margin-left: 0.3em;
                       `
                     })
                   );

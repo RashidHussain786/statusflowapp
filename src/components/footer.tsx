@@ -1,0 +1,40 @@
+export function Footer() {
+    return (
+        <footer className="border-t border-border bg-card/50 mt-16 2xl:mt-20">
+            <div className="container mx-auto px-4 2xl:px-6 py-6 2xl:py-8 max-w-5xl 2xl:max-w-7xl">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="text-center md:text-left">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center justify-center w-8 h-8 bg-foreground rounded-lg">
+                                <span className="text-background font-bold text-lg">S</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">
+                                    StatusFlowApp
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Privacy-First Team Status Generator
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div className="flex items-center gap-6 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                            <span>🔒</span>
+                            <span>Zero backend</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span>📱</span>
+                            <span>Offline-first</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span>🔗</span>
+                            <span>URL storage</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    );
+}
