@@ -14,12 +14,59 @@ export function useIndividualStatusForm() {
   const [error, setError] = useState('');
   const [currentUrlLength, setCurrentUrlLength] = useState<number>(0);
   const [statusLink, setStatusLink] = useState('');
+  const [tagError, setTagError] = useState('');
+
+  const validateTags = useCallback((currentApps: AppStatus[]) => {
+    if (typeof window === 'undefined') return { valid: true };
+    const parser = new DOMParser();
+
+    for (const app of currentApps) {
+      if (!app.content.trim() || app.content === '<ul><li></li></ul>') continue;
+
+      const doc = parser.parseFromString(app.content, 'text/html');
+
+      // 1. Check for any text content NOT inside a list item (ul/ol)
+      const nonListItems = Array.from(doc.body.children).filter(el =>
+        el.tagName !== 'UL' && el.tagName !== 'OL' && (el.textContent?.trim() || '') !== ''
+      );
+
+      if (nonListItems.length > 0) {
+        return { valid: false, message: 'All status points must be in a Bullet Point or Numbered List.' };
+      }
+
+      // 2. Check for missing tags in actual list items
+      const listItems = doc.querySelectorAll('li');
+      if (listItems.length === 0 && app.content.trim().length > 0) {
+        return { valid: false, message: 'All status points must be in a Bullet Point or Numbered List.' };
+      }
+
+      for (const li of Array.from(listItems)) {
+        const text = li.textContent?.trim() || '';
+        if (!text) continue;
+
+        if (!/\[[A-Z\s]+\]/.test(text)) {
+          return { valid: false, message: 'Every point must have a tag in brackets (e.g. [DONE], [IN PROGRESS]).' };
+        }
+      }
+    }
+    return { valid: true };
+  }, []);
 
   useEffect(() => {
     const hasValidApps = apps.some(app => app.app.trim() && app.content.trim());
 
     if (name.trim() && hasValidApps) {
+      const validation = validateTags(apps);
+      if (!validation.valid) {
+        setTagError(validation.message || 'Invalid format');
+        setGeneratedUrls([]);
+        setCurrentUrlLength(0);
+        return;
+      }
+      setTagError('');
+
       const validApps = apps.filter(app => app.app.trim() && app.content.trim());
+      // ... rest of logic
 
       if (validApps.length === 0) {
         setGeneratedUrls([]);
@@ -337,7 +384,7 @@ export function useIndividualStatusForm() {
     }
   }, []);
 
-  const isValid = name.trim() && apps.some(app => app.app.trim() && app.content.trim()) && !error;
+  const isValid = name.trim() && apps.some(app => app.app.trim() && app.content.trim()) && !error && !tagError;
 
   return {
     name, setName,
@@ -347,6 +394,7 @@ export function useIndividualStatusForm() {
     generatedUrls, setGeneratedUrls,
     copied, setCopied,
     error, setError,
+    tagError,
     currentUrlLength, setCurrentUrlLength,
     statusLink, setStatusLink,
     addApp, removeApp, toggleAppExpansion, updateApp, copyToClipboard,
