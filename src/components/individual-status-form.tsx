@@ -47,17 +47,17 @@ export function IndividualStatusForm() {
 
 
       <div className="bg-card border border-border rounded-lg p-4 2xl:p-6 shadow-sm mb-6 2xl:mb-8">
-        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0 mb-4 2xl:mb-4">
           <h2 className="text-base 2xl:text-lg font-semibold text-card-foreground">Applications</h2>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full md:w-auto">
               <input
                 id="name-inline"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your Name *"
-                className={`px-3 py-1.5 text-sm border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${!name.trim()
+                className={`w-full md:w-auto px-3 py-1.5 text-sm border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${!name.trim()
                   ? 'border-destructive focus:ring-destructive/20'
                   : 'border-input focus:ring-ring'
                   }`}
@@ -72,34 +72,38 @@ export function IndividualStatusForm() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+              className="w-full md:w-auto px-3 py-1.5 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
             />
-            <button
-              onClick={loadYesterdayStatus}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
-              title="Load status from the last saved date"
-            >
-              Load Previous
-            </button>
+
+            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 md:gap-3">
+              <button
+                onClick={loadYesterdayStatus}
+                className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors whitespace-nowrap"
+                title="Load status from the last saved date"
+              >
+                Load Previous
+              </button>
+              <button
+                type="button"
+                onClick={addApp}
+                className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                Add Application
+              </button>
+            </div>
+
             <button
               onClick={copyToClipboard}
               disabled={!isValid || generatedUrls.length === 0 || !name.trim()}
               title={!name.trim() ? 'Please enter your name first' : generatedUrls.length > 0 ? `Copy ${generatedUrls.length > 1 ? 'all shareable links' : 'shareable link'}` : 'Complete the form to generate link'}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors ${!isValid || generatedUrls.length === 0 || !name.trim()
+              className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${!isValid || generatedUrls.length === 0 || !name.trim()
                 ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer'
                 }`}
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied!' : generatedUrls.length > 1 ? `Copy All Links (${generatedUrls.length})` : 'Copy Link'}
-            </button>
-            <button
-              type="button"
-              onClick={addApp}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Add Application
+              {copied ? 'Copied!' : generatedUrls.length > 1 ? `Copy All (${generatedUrls.length})` : 'Copy Link'}
             </button>
           </div>
         </div>

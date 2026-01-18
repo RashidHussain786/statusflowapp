@@ -31,22 +31,22 @@ export default function Home() {
 
       <main className="container mx-auto px-4 2xl:px-6 py-12 2xl:py-16 max-w-4xl">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
+        <div className="text-center mb-12 md:mb-16">
+          <h1 className="text-3xl md:text-6xl font-bold text-foreground mb-4 md:mb-6">
             Streamline Your<span className="text-primary"> Team Status</span> Updates
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto px-4">
             Create shareable status links for your daily updates, then combine them into comprehensive team reports.
             No accounts, no backend, just pure productivity.
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col items-center justify-center gap-6 mb-16">
-          <div className="flex flex-col sm:flex-row gap-4 justify-center w-full">
+        <div className="flex flex-col items-center justify-center gap-6 mb-12 md:mb-16">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center w-full px-4 sm:px-0">
             <Link
               href="/create-status"
-              className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors shadow-lg min-w-[280px]"
+              className="inline-flex items-center justify-center gap-3 px-6 py-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors shadow-lg w-full sm:w-auto min-w-[240px]"
             >
               <FileText className="w-5 h-5" />
               Create Individual Status
@@ -55,7 +55,7 @@ export default function Home() {
 
             <Link
               href="/merge-team-status"
-              className="inline-flex items-center justify-center gap-3 px-8 py-4 border border-border bg-card text-card-foreground rounded-lg font-semibold hover:bg-accent hover:text-accent-foreground transition-colors min-w-[280px]"
+              className="inline-flex items-center justify-center gap-3 px-6 py-4 border border-border bg-card text-card-foreground rounded-lg font-semibold hover:bg-accent hover:text-accent-foreground transition-colors w-full sm:w-auto min-w-[240px]"
             >
               <Users className="w-5 h-5" />
               Merge Team Status
@@ -63,18 +63,20 @@ export default function Home() {
             </Link>
           </div>
 
-          <Link
-            href="/create-weekly"
-            className="inline-flex items-center gap-3 px-8 py-4 border border-border bg-card text-card-foreground rounded-lg font-semibold hover:bg-accent hover:text-accent-foreground transition-colors"
-          >
-            <span className="text-xl">📅</span>
-            Weekly Report
-            <ArrowRight className="w-5 h-5" />
-          </Link>
+          <div className="w-full px-4 sm:px-0 flex justify-center">
+            <Link
+              href="/create-weekly"
+              className="inline-flex items-center justify-center gap-3 px-6 py-4 border border-border bg-card text-card-foreground rounded-lg font-semibold hover:bg-accent hover:text-accent-foreground transition-colors w-full sm:w-auto min-w-[240px]"
+            >
+              <span className="text-xl">📅</span>
+              Weekly Report
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
 
         {/* Feature Cards */}
-        <div className="grid md:grid-cols-2 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-12 md:mb-16">
           <div className="bg-card border border-border rounded-lg p-6 text-center">
             <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
               <FileText className="w-6 h-6 text-primary" />
@@ -139,9 +141,9 @@ export default function Home() {
         </div>
 
         {/* How It Works */}
-        <div className="bg-card border border-border rounded-lg p-8 mb-16">
+        <div className="bg-card border border-border rounded-lg p-6 md:p-8 mb-12 md:mb-16">
           <h2 className="text-2xl font-bold text-foreground mb-6 text-center">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-3 font-bold">
                 1
@@ -175,9 +177,9 @@ export default function Home() {
         </div>
 
         {/* Key Features */}
-        <div className="bg-linear-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-8">
+        <div className="bg-linear-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-6 md:p-8">
           <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Why StatusFlowApp?</h2>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex items-start gap-3">
               <Zap className="w-5 h-5 text-primary mt-0.5" />
               <div>

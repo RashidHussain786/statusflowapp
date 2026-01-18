@@ -274,17 +274,6 @@ export function useTeamAggregationForm() {
     }
   }, [editableContent, getPlainText, removeStatusTags, showTagsInMerge]);
 
-  const downloadAsFile = useCallback(() => {
-    const blob = new Blob([generateOutput], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `team-status-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [generateOutput]);
 
   const hasValidUrls = processedData.fragments.length > 0;
   const hasOutput = generateOutput.trim().length > 0;
@@ -303,7 +292,6 @@ export function useTeamAggregationForm() {
     getPlainText,
     removeStatusTags,
     copyToClipboard,
-    downloadAsFile,
     hasValidUrls,
     hasOutput,
   };

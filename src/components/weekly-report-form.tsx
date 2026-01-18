@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { extractStatusUrls, decodeStatus } from '@/lib/encoding';
 import { extractAppNames, generateWeeklyReport } from '@/lib/weekly-report';
 import { StatusPayload } from '@/lib/types';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, ChevronDown } from 'lucide-react';
 import { RichTextEditor, EditorRef } from './rich-text-editor';
 
 export function WeeklyReportForm() {
@@ -14,8 +14,21 @@ export function WeeklyReportForm() {
     const [editableContent, setEditableContent] = useState('');
     const [copied, setCopied] = useState(false);
     const [showTags, setShowTags] = useState(true);
+    const [showAppSelector, setShowAppSelector] = useState(false);
     const editorRef = useRef<EditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
+    const appSelectorRef = useRef<HTMLDivElement>(null);
+
+    // Click outside listener for custom dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (appSelectorRef.current && !appSelectorRef.current.contains(event.target as Node)) {
+                setShowAppSelector(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Extract valid payloads from input
     const handleAnalyze = () => {
@@ -137,18 +150,37 @@ export function WeeklyReportForm() {
 
             {payloads.length > 0 && (
                 <div className="bg-card border border-border rounded-lg p-4 2xl:p-6 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-base 2xl:text-lg font-semibold text-card-foreground">2. Weekly Report:</h2>
-                            <select
-                                value={selectedApp}
-                                onChange={(e) => handleGenerate(e.target.value)}
-                                className="px-3 py-1.5 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent min-w-[200px]"
-                            >
-                                {availableApps.map(app => (
-                                    <option key={app} value={app}>{app}</option>
-                                ))}
-                            </select>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+                            <h2 className="text-base 2xl:text-lg font-semibold text-card-foreground whitespace-nowrap">2. Weekly Report:</h2>
+
+                            <div className="relative w-full sm:w-64" ref={appSelectorRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAppSelector(!showAppSelector)}
+                                    className="w-full flex items-center justify-between px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground hover:bg-accent transition-colors"
+                                >
+                                    <span>{selectedApp}</span>
+                                    <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                                </button>
+
+                                {showAppSelector && (
+                                    <div className="absolute top-full left-0 w-full mt-1 bg-popover border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                                        {availableApps.map(app => (
+                                            <button
+                                                key={app}
+                                                onClick={() => {
+                                                    handleGenerate(app);
+                                                    setShowAppSelector(false);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${selectedApp === app ? 'bg-accent font-medium' : ''}`}
+                                            >
+                                                {app}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <button
