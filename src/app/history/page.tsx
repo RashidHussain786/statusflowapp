@@ -1,210 +1,51 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
 import { MainNav } from '@/components/main-nav';
 import { Footer } from '@/components/footer';
 import { db, DailyPayload } from '@/lib/indexeddb';
-import { Search, Download, Upload, Calendar, ArrowRight, History as HistoryIcon, X as XIcon, BarChart3, PieChart, TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronRight, User, Link2, Copy, Check } from 'lucide-react';
-import Link from 'next/link';
-import { encodeStatus, encodeMultiStatus, splitMultiStatusPayloads } from '@/lib/encoding';
-import { useRouter } from 'next/navigation';
+import { Search, Download, Upload, Calendar, ArrowRight, History as HistoryIcon, X as XIcon, BarChart3, PieChart, TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronRight, User, Link2, Copy, Check, MousePointer2 } from 'lucide-react';
 import { renderTagsInHtml } from '@/lib/tags';
-
-interface StatusGroup {
-    id: string; // name-date
-    name: string;
-    date: string;
-    entries: DailyPayload[];
-}
+import { useHistory, StatusGroup } from '@/hooks/use-history';
+import { AppStatus } from '@/lib/types';
 
 export default function HistoryPage() {
-    const router = useRouter();
-    const [entries, setEntries] = useState<DailyPayload[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'list' | 'stats'>('list');
-    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-
-    // Weekly Batch State
-    const [isWeeklyModalOpen, setIsWeeklyModalOpen] = useState(false);
-    const [weeklyStartDate, setWeeklyStartDate] = useState('');
-    const [weeklyEndDate, setWeeklyEndDate] = useState('');
-    const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
-
-    // Timeline State
-    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-    const [taskTimeline, setTaskTimeline] = useState<{ date: string, content: string, status: string }[]>([]);
-    const [isTimelineLoading, setIsTimelineLoading] = useState(false);
-
-    useEffect(() => {
-        loadEntries();
-    }, []);
-
-    async function loadEntries() {
-        setIsLoading(true);
-        try {
-            const allEntries = await db.dailyPayloads.orderBy('date').reverse().toArray();
-            setEntries(allEntries);
-        } catch (err) {
-            console.error('Failed to load history:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    // Filtered and Grouped entries
-    const groupedEntries = useMemo(() => {
-        let filtered = entries;
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            filtered = entries.filter(e =>
-                e.payload.name.toLowerCase().includes(q) ||
-                e.appName.toLowerCase().includes(q) ||
-                e.payload.apps.some(app => app.content.toLowerCase().includes(q))
-            );
-        }
-
-        const groups = new Map<string, StatusGroup>();
-        filtered.forEach(entry => {
-            const id = `${entry.payload.name}-${entry.date}`;
-            if (!groups.has(id)) {
-                groups.set(id, {
-                    id,
-                    name: entry.payload.name,
-                    date: entry.date,
-                    entries: []
-                });
-            }
-            groups.get(id)!.entries.push(entry);
-        });
-
-        return Array.from(groups.values());
-    }, [entries, searchQuery]);
-
-    // Productivity Metrics Calculation
-    const stats = useMemo(() => {
-        const counts = {
-            done: 0,
-            inProgress: 0,
-            blocked: 0,
-            total: 0,
-            velocity: [] as { date: string, count: number }[],
-        };
-
-        const dateMap = new Map<string, number>();
-
-        entries.forEach(entry => {
-            entry.payload.apps.forEach(app => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(app.content, 'text/html');
-                const items = doc.querySelectorAll('li');
-
-                items.forEach(li => {
-                    const text = li.textContent?.toUpperCase() || '';
-                    if (['[DONE]', '[DEPLOYED]', '[COMPLETED]'].some(tag => text.includes(tag))) {
-                        counts.done++;
-                        dateMap.set(entry.date, (dateMap.get(entry.date) || 0) + 1);
-                    } else if (['[BLOCKED]', '[ON HOLD]'].some(tag => text.includes(tag))) {
-                        counts.blocked++;
-                    } else if (['[IN PROGRESS]', '[WORKING]', '[PLANNED]'].some(tag => text.includes(tag))) {
-                        counts.inProgress++;
-                    }
-                    counts.total++;
-                });
-            });
-        });
-
-        counts.velocity = Array.from(dateMap.entries())
-            .map(([date, count]) => ({ date, count }))
-            .sort((a, b) => a.date.localeCompare(b.date))
-            .slice(-7);
-
-        return counts;
-    }, [entries]);
-
-    async function handleCopyWeeklyRange() {
-        if (!weeklyStartDate || !weeklyEndDate) {
-            alert('Please select a date range.');
-            return;
-        }
-
-        try {
-            // Find all payloads within range
-            const rangeEntries = entries.filter(e => e.date >= weeklyStartDate && e.date <= weeklyEndDate);
-            if (rangeEntries.length === 0) {
-                alert('No statuses found in this date range.');
-                return;
-            }
-
-            // Group by date to avoid duplicate apps if they were split, 
-            // but actually encodeMultiStatus handles a list of payloads.
-            const payloads = rangeEntries.map(e => e.payload);
-            const fragments = splitMultiStatusPayloads(payloads);
-            const userName = payloads[0]?.name || 'User';
-            const baseLabel = `${userName} - Weekly Status (${weeklyStartDate} to ${weeklyEndDate})`;
-
-            let html = '';
-            let text = '';
-
-            fragments.forEach((fragment, i) => {
-                const fullUrl = `${window.location.origin}/create-weekly${fragment}`;
-                // Use the full label as the hyperlink text, with a number if split
-                const label = fragments.length > 1 ? `${baseLabel} (${i + 1})` : baseLabel;
-                html += `<a href="${fullUrl}">${label}</a><br/>`;
-                text += `${label}: ${fullUrl}\n`;
-            });
-
-            const blobHtml = new Blob([html], { type: 'text/html' });
-            const blobText = new Blob([text], { type: 'text/plain' });
-
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    'text/html': blobHtml,
-                    'text/plain': blobText,
-                })
-            ]);
-
-            setCopyStatus('copied');
-            setTimeout(() => {
-                setCopyStatus('idle');
-                setIsWeeklyModalOpen(false);
-            }, 2000);
-        } catch (err) {
-            console.error('Failed to copy weekly batch:', err);
-            setCopyStatus('error');
-            setTimeout(() => setCopyStatus('idle'), 2000);
-        }
-    }
-
-    async function showTimeline(taskId: string) {
-        setSelectedTaskId(taskId);
-        setIsTimelineLoading(true);
-        try {
-            const all = await db.dailyPayloads.orderBy('date').toArray();
-            const timeline = all
-                .filter(e => e.payload.apps.some(app => app.content.includes(`data-id="${taskId}"`)))
-                .map(e => {
-                    const app = e.payload.apps.find(a => a.content.includes(`data-id="${taskId}"`))!;
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(app.content, 'text/html');
-                    const li = doc.querySelector(`li[data-id="${taskId}"]`);
-                    const text = li?.textContent || '';
-                    const tagMatch = text.match(/\[([^\]]+)\]/);
-                    const status = tagMatch ? tagMatch[1] : 'Unknown';
-
-                    return {
-                        date: e.date,
-                        content: li?.innerHTML || '',
-                        status
-                    };
-                });
-            setTaskTimeline(timeline);
-        } catch (err) {
-            console.error('Failed to load timeline:', err);
-        } finally {
-            setIsTimelineLoading(false);
-        }
-    }
+    const {
+        uniqueNames,
+        filteredEntries,
+        pagedGroups,
+        isLoading,
+        searchQuery,
+        setSearchQuery,
+        activeTab,
+        setActiveTab,
+        selectedType,
+        setSelectedType,
+        selectedPerson,
+        setSelectedPerson,
+        expandedGroups,
+        toggleGroup,
+        stats,
+        isWeeklyModalOpen,
+        setIsWeeklyModalOpen,
+        weeklyStartDate,
+        setWeeklyStartDate,
+        weeklyEndDate,
+        setWeeklyEndDate,
+        handleCopyWeeklyRange,
+        copyStatus,
+        selectedTaskId,
+        setSelectedTaskId,
+        taskTimeline,
+        isTimelineLoading,
+        showTimeline,
+        hasMore,
+        loadMore,
+        loadEntries,
+        startDate,
+        setStartDate,
+        endDate,
+        setEndDate
+    } = useHistory();
 
     async function exportHistory() {
         try {
@@ -249,21 +90,6 @@ export default function HistoryPage() {
         reader.readAsText(file);
     }
 
-    function getTasks(html: string): { id: string, content: string, status: string }[] {
-        if (typeof window === 'undefined') return [];
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        return Array.from(doc.querySelectorAll('li[data-id]')).map(li => {
-            const text = li.textContent || '';
-            const tagMatch = text.match(/\[([^\]]+)\]/);
-            return {
-                id: li.getAttribute('data-id') || '',
-                content: li.innerHTML,
-                status: tagMatch ? tagMatch[1] : ''
-            };
-        });
-    }
-
     function injectTraceTriggers(html: string): string {
         if (typeof window === 'undefined') return html;
         const processedHtml = renderTagsInHtml(html);
@@ -283,7 +109,6 @@ export default function HistoryPage() {
                     </button>
                 `;
 
-                // Always prepend to the li or its first paragraph to keep it at the front
                 const firstP = li.querySelector('p');
                 if (firstP) {
                     firstP.insertAdjacentHTML('afterbegin', triggerHtml);
@@ -296,7 +121,6 @@ export default function HistoryPage() {
         return doc.body.innerHTML;
     }
 
-    // Handle clicks on injected trace buttons using event delegation
     const handleContentClick = (e: React.MouseEvent) => {
         const target = e.target as HTMLElement;
         const trigger = target.closest('.trace-trigger');
@@ -310,74 +134,141 @@ export default function HistoryPage() {
         }
     };
 
-    function toggleGroup(id: string) {
-        setExpandedGroups(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    }
-
     return (
         <div className="min-h-screen flex flex-col bg-background text-foreground">
             <MainNav />
-            <main className="flex-1 container mx-auto px-4 2xl:px-6 py-8 max-w-5xl 2xl:max-w-7xl">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <main className="flex-1 container mx-auto px-4 2xl:px-6 py-6 2xl:py-8 max-w-5xl 2xl:max-w-7xl">
+                <div className="flex flex-col gap-4 md:gap-0 md:flex-row md:items-center justify-between mb-6 2xl:mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Status Dashboard</h1>
-                        <p className="text-muted-foreground mt-1 text-sm font-medium">Insights and archive of your daily productivity.</p>
+                        <h1 className="text-2xl md:text-3xl 2xl:text-4xl font-black tracking-tight text-foreground uppercase flex items-center gap-2 md:gap-3">
+                            <HistoryIcon className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+                            History Archive
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-xs md:text-sm font-bold uppercase tracking-widest">
+                            Manage and trace your status evolution
+                        </p>
                     </div>
-
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
                         <button
                             onClick={() => setIsWeeklyModalOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20"
+                            className="inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-all font-black uppercase text-[10px] md:text-xs tracking-widest shadow-xs"
                         >
-                            <Link2 className="h-4 w-4" />
-                            Copy Weekly Link
+                            <Link2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            <span className="hidden md:inline">Weekly Range URL</span>
+                            <span className="md:hidden">Weekly</span>
                         </button>
                         <button
                             onClick={exportHistory}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-all text-xs font-bold uppercase tracking-wider"
+                            className="inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-all font-black uppercase text-[10px] md:text-xs tracking-widest shadow-xs"
                         >
-                            <Download className="h-4 w-4" />
-                            Backup
+                            <Download className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            <span className="hidden md:inline">Backup</span>
+                            <span className="md:hidden">Export</span>
                         </button>
-                        <div className="relative">
-                            <input
-                                type="file"
-                                accept=".json"
-                                onChange={importHistory}
-                                className="absolute inset-0 opacity-0 cursor-pointer"
-                            />
-                            <button className="inline-flex items-center gap-2 px-4 py-2 border border-input bg-background rounded-lg hover:bg-accent transition-all text-xs font-bold uppercase tracking-wider">
-                                <Upload className="h-4 w-4" />
-                                Restore
-                            </button>
-                        </div>
+                        <label className="inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-all font-black uppercase text-[10px] md:text-xs tracking-widest shadow-xs cursor-pointer">
+                            <Upload className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            <span className="hidden md:inline">Restore</span>
+                            <span className="md:hidden">Import</span>
+                            <input type="file" accept=".json" onChange={importHistory} className="hidden" />
+                        </label>
                     </div>
                 </div>
 
-                <div className="flex gap-1 p-1 bg-muted/30 rounded-xl mb-8 w-fit border border-border">
+                <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6 2xl:mb-8">
+                    <div className="relative flex-1 group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, application, or status content..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 md:py-3 bg-secondary/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
+                        <select
+                            value={selectedType}
+                            onChange={(e) => setSelectedType(e.target.value as any)}
+                            className="flex-1 md:flex-none px-3 md:px-4 py-2.5 md:py-3 bg-secondary/50 border border-border rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer min-w-[120px]"
+                        >
+                            <option value="all">All Types</option>
+                            <option value="individual">Individual</option>
+                            <option value="team">Team Merge</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+
+                        <select
+                            value={selectedPerson}
+                            onChange={(e) => setSelectedPerson(e.target.value)}
+                            className="flex-1 md:flex-none px-3 md:px-4 py-2.5 md:py-3 bg-secondary/50 border border-border rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer min-w-[120px]"
+                        >
+                            <option value="all">All People</option>
+                            {uniqueNames.map((name: string) => (
+                                <option key={name} value={name}>{name}</option>
+                            ))}
+                        </select>
+
+                        <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                placeholder="From"
+                                className="w-full md:w-auto pl-9 pr-3 py-2.5 md:py-3 bg-secondary/50 border border-border rounded-xl text-[10px] md:text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all min-w-[140px]"
+                            />
+                        </div>
+
+                        <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                placeholder="To"
+                                className="w-full md:w-auto pl-9 pr-3 py-2.5 md:py-3 bg-secondary/50 border border-border rounded-xl text-[10px] md:text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all min-w-[140px]"
+                            />
+                        </div>
+
+                        {(startDate || endDate || selectedType !== 'all' || selectedPerson !== 'all' || searchQuery) && (
+                            <button
+                                onClick={() => {
+                                    setStartDate('');
+                                    setEndDate('');
+                                    setSelectedType('all');
+                                    setSelectedPerson('all');
+                                    setSearchQuery('');
+                                }}
+                                className="px-3 md:px-4 py-2.5 md:py-3 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-xl transition-all font-black uppercase text-[10px] md:text-xs tracking-widest flex items-center gap-1.5"
+                                title="Clear all filters"
+                            >
+                                <XIcon className="h-3.5 w-3.5" />
+                                <span className="">Clear</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex gap-1 p-1 bg-muted/30 rounded-xl mb-6 2xl:mb-8 w-full sm:w-fit border border-border">
                     <button
                         onClick={() => setActiveTab('list')}
-                        className={`px-6 py-2 rounded-lg text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'list' ? 'bg-background text-foreground shadow-xs ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'list' ? 'bg-background text-foreground shadow-xs ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Archive
                     </button>
                     <button
                         onClick={() => setActiveTab('stats')}
-                        className={`px-6 py-2 rounded-lg text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'stats' ? 'bg-background text-foreground shadow-xs ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-black uppercase tracking-widest transition-all ${activeTab === 'stats' ? 'bg-background text-foreground shadow-xs ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Insights
                     </button>
                 </div>
 
                 {activeTab === 'stats' ? (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xs border-l-4 border-l-green-500">
+                    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 2xl:gap-6">
+                            <div className="bg-card border border-border rounded-2xl p-4 md:p-6 2xl:p-8 shadow-xs border-l-4 border-l-green-500">
                                 <div className="flex items-center justify-between mb-2">
                                     <CheckCircle2 className="h-5 w-5 text-green-500" />
                                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Completed</span>
@@ -386,7 +277,7 @@ export default function HistoryPage() {
                                 <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter">Total items marked as done</p>
                             </div>
 
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xs border-l-4 border-l-primary">
+                            <div className="bg-card border border-border rounded-2xl p-4 md:p-6 2xl:p-8 shadow-xs border-l-4 border-l-primary">
                                 <div className="flex items-center justify-between mb-2">
                                     <Clock className="h-5 w-5 text-primary" />
                                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">In Progress</span>
@@ -395,7 +286,7 @@ export default function HistoryPage() {
                                 <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter">Active tasks being worked on</p>
                             </div>
 
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xs border-l-4 border-l-red-500">
+                            <div className="bg-card border border-border rounded-2xl p-4 md:p-6 2xl:p-8 shadow-xs border-l-4 border-l-red-500">
                                 <div className="flex items-center justify-between mb-2">
                                     <AlertCircle className="h-5 w-5 text-red-500" />
                                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Blocked</span>
@@ -404,34 +295,35 @@ export default function HistoryPage() {
                                 <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter">Items currently stuck</p>
                             </div>
 
-                            <div className="bg-card border border-border rounded-2xl p-6 shadow-xs border-l-4 border-l-muted-foreground">
+                            <div className="bg-card border border-border rounded-2xl p-4 md:p-6 2xl:p-8 shadow-xs border-l-4 border-l-muted-foreground">
                                 <div className="flex items-center justify-between mb-2">
                                     <TrendingUp className="h-5 w-5 text-muted-foreground" />
                                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Velocity</span>
                                 </div>
-                                <div className="text-3xl font-black">{stats.velocity.length > 0 ? (stats.done / entries.length).toFixed(1) : 0}</div>
+                                <div className="text-2xl md:text-3xl font-black">{stats.velocity.length > 0 ? (stats.done / filteredEntries.length).toFixed(1) : 0}</div>
                                 <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter">Avg tasks completed per status</p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="bg-card border border-border rounded-3xl p-8 shadow-xs">
-                                <h3 className="font-black text-lg mb-6 uppercase tracking-tight flex items-center gap-2">
-                                    <BarChart3 className="h-5 w-5 text-primary" />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 2xl:gap-8">
+                            <div className="bg-card border border-border rounded-2xl md:rounded-3xl p-4 md:p-6 2xl:p-8 shadow-xs">
+                                <h3 className="font-black text-base md:text-lg 2xl:text-xl mb-4 md:mb-6 uppercase tracking-tight flex items-center gap-2">
+                                    <BarChart3 className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                                     Recent Throughput
                                 </h3>
-                                <div className="h-48 flex items-end justify-between gap-2">
-                                    {stats.velocity.map((v, i) => (
-                                        <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                                <div className="h-40 md:h-48 2xl:h-56 flex items-end justify-between gap-1 md:gap-2 px-1 md:px-2 border-b border-border/50">
+                                    {stats.velocity.map((v: { date: string, count: number }, i: number) => (
+                                        <div key={i} className="flex-1 flex flex-col items-center gap-2 group max-w-[40px]">
                                             <div
-                                                className="w-full bg-primary/20 hover:bg-primary/40 transition-all rounded-t-lg relative"
-                                                style={{ height: `${(v.count / Math.max(...stats.velocity.map(d => d.count), 1)) * 100}%` }}
+                                                className="w-full bg-primary/40 group-hover:bg-primary transition-all rounded-t-lg relative flex items-end justify-center"
+                                                style={{ height: `${(v.count / Math.max(...stats.velocity.map((d: { date: string, count: number }) => d.count), 1)) * 100}%` }}
+                                                title={`${v.count} tasks completed`}
                                             >
-                                                <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {v.count}
-                                                </span>
+                                                <div className="absolute -top-8 bg-popover border border-border px-2 py-1 rounded shadow-lg text-[10px] font-black opacity-0 group-hover:opacity-100 transition-all transform group-hover:-translate-y-1 pointer-events-none whitespace-nowrap z-10">
+                                                    {v.count} Done
+                                                </div>
                                             </div>
-                                            <span className="text-[8px] font-bold text-muted-foreground rotate-45 origin-left truncate max-w-[40px]">
+                                            <span className="text-[10px] font-bold text-muted-foreground rotate-45 origin-left mt-2 whitespace-nowrap">
                                                 {v.date.split('-').slice(1).join('/')}
                                             </span>
                                         </div>
@@ -440,12 +332,12 @@ export default function HistoryPage() {
                                 </div>
                             </div>
 
-                            <div className="bg-card border border-border rounded-3xl p-8 shadow-xs flex flex-col items-center">
-                                <h3 className="font-black text-lg mb-6 uppercase tracking-tight self-start flex items-center gap-2">
-                                    <PieChart className="h-5 w-5 text-primary" />
+                            <div className="bg-card border border-border rounded-2xl md:rounded-3xl p-4 md:p-6 2xl:p-8 shadow-xs flex flex-col items-center">
+                                <h3 className="font-black text-base md:text-lg 2xl:text-xl mb-4 md:mb-6 uppercase tracking-tight self-start flex items-center gap-2">
+                                    <PieChart className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                                     Task Distribution
                                 </h3>
-                                <div className="relative w-48 h-48 mb-6">
+                                <div className="relative w-36 h-36 md:w-48 md:h-48 2xl:w-56 2xl:h-56 mb-4 md:mb-6">
                                     <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                                         <circle cx="18" cy="18" r="15.915" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/20" />
                                         {stats.total > 0 && (
@@ -478,227 +370,254 @@ export default function HistoryPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="relative mb-8">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                placeholder="Search by name, application, or status content..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-input rounded-xl bg-muted/20 text-foreground focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-xs"
-                            />
-                        </div>
-
+                    <div className="space-y-6">
                         {isLoading ? (
-                            <div className="text-center py-20">
-                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                                <p className="mt-2 text-muted-foreground animate-pulse font-medium">Loading history...</p>
+                            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                                <HistoryIcon className="h-12 w-12 text-muted animate-spin mb-4" />
+                                <div className="h-4 w-32 bg-muted rounded"></div>
                             </div>
-                        ) : groupedEntries.length === 0 ? (
-                            <div className="text-center py-20 bg-card border border-border rounded-2xl border-dashed">
-                                <div className="text-5xl mb-4">📂</div>
-                                <h3 className="text-xl font-bold">No entries found</h3>
+                        ) : filteredEntries.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center bg-card border border-border border-dashed rounded-3xl">
+                                <div className="h-20 w-20 bg-muted/20 rounded-full flex items-center justify-center mb-4">
+                                    <Search className="h-10 w-10 text-muted-foreground" />
+                                </div>
+                                <h3 className="text-xl font-black uppercase tracking-tight text-foreground">No records found</h3>
                                 <p className="text-muted-foreground max-w-xs mx-auto mt-2">
                                     {searchQuery ? "No snapshots match your search." : "You haven't saved any statuses yet."}
                                 </p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-4">
-                                {groupedEntries.map((group) => (
-                                    <div key={group.id} className="bg-card border border-border rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all border-l-4 border-l-primary/30">
-                                        <button
-                                            onClick={() => toggleGroup(group.id)}
-                                            className="w-full text-left bg-muted/30 px-6 py-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                                    <User className="h-5 w-5 text-primary" />
-                                                </div>
-                                                <div>
-                                                    <div className="font-black text-foreground text-lg tracking-tight uppercase">{group.name}</div>
-                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-bold uppercase tracking-tighter">
-                                                        <Calendar className="h-3.5 w-3.5" />
-                                                        {group.date}
+                            <div className="flex flex-col gap-4">
+                                <div className="grid grid-cols-1 gap-4">
+                                    {pagedGroups.map((group: StatusGroup) => (
+                                        <div key={group.id} className="bg-card border border-border rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all border-l-4 border-l-primary/30">
+                                            <button
+                                                onClick={() => toggleGroup(group.id)}
+                                                className="w-full text-left bg-muted/30 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                                    <div className="h-8 w-8 md:h-10 md:w-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                                                        <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-black text-foreground text-base md:text-lg tracking-tight uppercase truncate">{group.name}</div>
+                                                        <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground font-bold uppercase tracking-tighter">
+                                                            <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                                                            {group.date}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-1 rounded uppercase tracking-widest">
-                                                    {group.entries.length} {group.entries.length === 1 ? 'App' : 'Apps'}
-                                                </span>
-                                                {expandedGroups.has(group.id) ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                                <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                                                    <span className="text-[9px] md:text-[10px] font-black bg-primary/10 text-primary px-2 py-1 rounded uppercase tracking-widest">
+                                                        {group.entries.length} {group.entries.length === 1 ? 'App' : 'Apps'}
+                                                    </span>
+                                                    {expandedGroups.has(group.id) ? <ChevronDown className="h-4 w-4 md:h-5 md:w-5" /> : <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />}
+                                                </div>
+                                            </button>
+
+                                            {expandedGroups.has(group.id) && (
+                                                <div className="p-4 md:p-6 2xl:p-8 space-y-6 md:space-y-8 animate-in slide-in-from-top-2 duration-200">
+                                                    {group.entries.map((entry: DailyPayload) => (
+                                                        <div key={entry.id || `${entry.date}-${entry.type}`} className="space-y-6">
+                                                            {entry.payload.apps.map((app: AppStatus) => (
+                                                                <div key={app.app} className="space-y-4 border-b border-border last:border-0 pb-6 last:pb-0">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="px-3 py-1 bg-primary text-primary-foreground text-[10px] uppercase font-black rounded-lg tracking-widest shadow-xs">
+                                                                                {app.app}
+                                                                            </span>
+                                                                            {entry.type !== 'individual' && (
+                                                                                <span className={`px-2 py-1 text-[8px] font-black rounded uppercase tracking-tighter ${entry.type === 'team' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
+                                                                                    {entry.type}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div
+                                                                        className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground marker:text-primary list-disc list-inside selection:bg-primary/30"
+                                                                        onClick={handleContentClick}
+                                                                        dangerouslySetInnerHTML={{ __html: injectTraceTriggers(app.content) }}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {hasMore && (
+                                    <div className="flex justify-center pt-6 md:pt-8 pb-8 md:pb-12">
+                                        <button
+                                            onClick={loadMore}
+                                            className="group relative inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 bg-card border-2 border-primary/20 hover:border-primary text-foreground rounded-xl md:rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg overflow-hidden font-black uppercase text-xs md:text-sm tracking-widest"
+                                        >
+                                            <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
+                                            <MousePointer2 className="h-4 w-4 md:h-5 md:w-5 text-primary group-hover:animate-bounce" />
+                                            Load More
+                                            <div className="ml-1 md:ml-2 h-5 w-5 md:h-6 md:w-6 rounded-full bg-primary/10 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-primary">
+                                                +
                                             </div>
                                         </button>
-
-                                        {expandedGroups.has(group.id) && (
-                                            <div className="p-6 space-y-8 animate-in slide-in-from-top-2 duration-200">
-                                                {group.entries.map((entry, idx) => (
-                                                    <div key={idx} className="space-y-4 border-b border-border last:border-0 pb-6 last:pb-0">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="px-3 py-1 bg-primary text-primary-foreground text-[10px] uppercase font-black rounded-lg tracking-widest shadow-xs">
-                                                                {entry.appName}
-                                                            </span>
-                                                        </div>
-
-                                                        <div
-                                                            className="prose prose-sm dark:prose-invert max-w-none ml-1"
-                                                            onClick={handleContentClick}
-                                                        >
-                                                            <div dangerouslySetInnerHTML={{ __html: injectTraceTriggers(entry.payload.apps[0].content) }} />
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
                                     </div>
-                                ))}
+                                )}
                             </div>
                         )}
                     </div>
                 )}
+            </main>
 
-                {/* Timeline Modal */}
-                {selectedTaskId && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-                        <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 ring-1 ring-white/10 shadow-primary/10">
-                            <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
-                                <div>
-                                    <h3 className="font-black text-xl flex items-center gap-3 uppercase tracking-tight">
-                                        <HistoryIcon className="h-6 w-6 text-primary" />
-                                        Task Timeline
-                                    </h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] font-mono bg-muted px-2 py-0.5 rounded text-muted-foreground font-bold tracking-widest border border-border">ID: {selectedTaskId}</span>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setSelectedTaskId(null)}
-                                    className="p-2 hover:bg-accent rounded-full transition-colors"
-                                >
-                                    <XIcon className="h-6 w-6" />
-                                </button>
-                            </div>
+            <Footer />
 
-                            <div className="flex-1 overflow-y-auto p-8 bg-card">
-                                {isTimelineLoading ? (
-                                    <div className="flex flex-col items-center justify-center h-60 gap-4">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent shadow-lg shadow-primary/20"></div>
-                                        <p className="text-sm font-black text-muted-foreground uppercase tracking-widest animate-pulse">Deep Scanning History...</p>
-                                    </div>
-                                ) : (
-                                    <div className="relative space-y-10 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-1 before:bg-linear-to-b before:from-primary/40 before:via-primary/20 before:to-transparent">
-                                        {taskTimeline.map((step, i) => (
-                                            <div key={i} className="relative flex items-start gap-8 group">
-                                                <div className="absolute left-0 mt-2 w-10 flex justify-center">
-                                                    <div className={`h-4.5 w-4.5 rounded-full border-4 border-card ring-2 transition-all ${['DONE', 'DEPLOYED', 'COMPLETED'].includes(step.status.toUpperCase())
-                                                        ? 'bg-green-500 ring-green-500/20'
-                                                        : ['BLOCKED', 'ERROR', 'STOPPED'].includes(step.status.toUpperCase())
-                                                            ? 'bg-red-500 ring-red-500/20'
-                                                            : 'bg-primary ring-primary/20'
-                                                        }`}></div>
-                                                </div>
-                                                <div className="flex-1 bg-muted/20 p-6 rounded-2xl border border-border group-hover:bg-muted/40 transition-colors shadow-xs">
-                                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                                                        <span className="text-xs font-black text-foreground/70 flex items-center gap-1.5 uppercase tracking-widest">
-                                                            <Calendar className="h-3.5 w-3.5" />
-                                                            {step.date}
-                                                        </span>
-                                                        <span className={`text-[10px] font-black px-3 py-1 rounded-lg border tracking-widest uppercase shadow-sm ${['DONE', 'DEPLOYED', 'COMPLETED'].includes(step.status.toUpperCase())
-                                                            ? 'bg-green-500/10 text-green-500 border-green-500/20'
-                                                            : 'bg-primary/10 text-primary border-primary/20'
-                                                            }`}>
-                                                            {step.status}
-                                                        </span>
-                                                    </div>
-                                                    <div className="prose prose-sm dark:prose-invert max-w-none font-medium leading-relaxed">
-                                                        <div dangerouslySetInnerHTML={{ __html: renderTagsInHtml(step.content) }} />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {taskTimeline.length === 0 && <div className="text-center py-10 font-bold text-muted-foreground uppercase tracking-widest">No trace found.</div>}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="p-6 border-t border-border bg-muted/30 flex justify-end">
-                                <button
-                                    onClick={() => setSelectedTaskId(null)}
-                                    className="px-8 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/20"
-                                >
-                                    Close Record
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                {/* Weekly Batch Modal */}
-                {isWeeklyModalOpen && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-                        <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
-                            <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
-                                <h3 className="font-black text-xl flex items-center gap-3 uppercase tracking-tight">
-                                    <Link2 className="h-6 w-6 text-primary" />
-                                    Copy Weekly Link
+            {/* Weekly Batch Modal */}
+            {isWeeklyModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border-t-4 md:border-t-8 border-t-primary">
+                        <div className="p-5 md:p-8 space-y-6 md:space-y-8">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center gap-2">
+                                    <Link2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                                    Generate Batch
                                 </h3>
-                                <button
-                                    onClick={() => setIsWeeklyModalOpen(false)}
-                                    className="p-2 hover:bg-accent rounded-full transition-colors"
-                                >
-                                    <XIcon className="h-6 w-6" />
+                                <button onClick={() => setIsWeeklyModalOpen(false)} className="p-1.5 md:p-2 hover:bg-muted rounded-full transition-colors">
+                                    <XIcon className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                                 </button>
                             </div>
-                            <div className="p-8 space-y-6">
-                                <p className="text-sm text-muted-foreground font-medium">
-                                    Select a date range to generate a single consolidated hyperlink for your Weekly Report.
-                                </p>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">From Date</label>
+
+                            <p className="text-xs md:text-sm text-muted-foreground font-medium">Select a date range to generate shareable links for your daily statuses.</p>
+
+                            <div className="space-y-4 md:space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">From</label>
+                                    <div className="relative">
                                         <input
                                             type="date"
                                             value={weeklyStartDate}
                                             onChange={(e) => setWeeklyStartDate(e.target.value)}
-                                            className="w-full px-3 py-2 bg-muted/50 border border-input rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                            className="w-full px-3 md:px-4 py-2.5 md:py-3 bg-secondary/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold text-sm"
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">To Date</label>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">To</label>
+                                    <div className="relative">
                                         <input
                                             type="date"
                                             value={weeklyEndDate}
                                             onChange={(e) => setWeeklyEndDate(e.target.value)}
-                                            className="w-full px-3 py-2 bg-muted/50 border border-input rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                            className="w-full px-3 md:px-4 py-2.5 md:py-3 bg-secondary/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold text-sm"
                                         />
                                     </div>
                                 </div>
                             </div>
-                            <div className="p-6 border-t border-border bg-muted/30 flex gap-3">
-                                <button
-                                    onClick={() => setIsWeeklyModalOpen(false)}
-                                    className="flex-1 px-4 py-3 border border-input rounded-xl hover:bg-accent transition-all text-xs font-black uppercase tracking-widest"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleCopyWeeklyRange}
-                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all text-xs font-black uppercase tracking-widest shadow-lg ${copyStatus === 'copied'
-                                        ? 'bg-green-500 text-white shadow-green-500/20'
-                                        : copyStatus === 'error'
-                                            ? 'bg-red-500 text-white shadow-red-500/20'
-                                            : 'bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90'
-                                        }`}
-                                >
-                                    {copyStatus === 'copied' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                                    {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Failed' : 'Copy Hyperlink'}
-                                </button>
-                            </div>
+
+                            <button
+                                onClick={handleCopyWeeklyRange}
+                                className="w-full py-3 md:py-4 bg-primary text-primary-foreground rounded-xl md:rounded-2xl hover:bg-primary/90 transition-all font-black uppercase text-xs md:text-sm tracking-widest shadow-lg flex items-center justify-center gap-2 md:gap-3 active:scale-95"
+                            >
+                                {copyStatus === 'copied' ? <Check className="h-4 w-4 md:h-5 md:w-5" /> : <Copy className="h-4 w-4 md:h-5 md:w-5" />}
+                                {copyStatus === 'copied' ? 'Links Copied!' : 'Copy Batch Links'}
+                            </button>
                         </div>
                     </div>
-                )}
-            </main>
-            <Footer />
+                </div>
+            )}
+
+            {/* Timeline Modal */}
+            {selectedTaskId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] md:max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border-t-4 md:border-t-8 border-t-primary">
+                        <div className="p-4 md:p-6 border-b border-border flex items-center justify-between shrink-0 bg-muted/20">
+                            <div>
+                                <h3 className="font-black text-lg md:text-xl uppercase tracking-tight flex items-center gap-2">
+                                    <HistoryIcon className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                                    Task Evolution
+                                </h3>
+                                <div className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Tracing ID: {selectedTaskId}</div>
+                            </div>
+                            <button onClick={() => setSelectedTaskId(null)} className="p-1.5 md:p-2 hover:bg-muted rounded-full transition-colors">
+                                <XIcon className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6 2xl:p-8 space-y-6 md:space-y-8 scrollbar-thin scrollbar-thumb-primary/20">
+                            {isTimelineLoading ? (
+                                <div className="h-60 flex items-center justify-center">
+                                    <HistoryIcon className="h-10 w-10 text-primary animate-spin" />
+                                </div>
+                            ) : taskTimeline.length === 0 ? (
+                                <div className="h-60 flex flex-col items-center justify-center text-center">
+                                    <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+                                    <p className="text-muted-foreground font-bold uppercase text-xs tracking-widest">No previous history found for this task.</p>
+                                </div>
+                            ) : (
+                                <div className="relative space-y-12 before:absolute before:inset-y-2 before:left-[11px] before:w-[2px] before:bg-linear-to-b before:from-primary/50 before:via-primary/20 before:to-transparent">
+                                    {taskTimeline.map((item: { date: string, content: string, status: string }, i: number) => {
+                                        // Determine status badge color based on status type
+                                        const getStatusColor = (status: string) => {
+                                            const upperStatus = status.toUpperCase();
+
+                                            // Green for completed/deployed states
+                                            if (upperStatus.includes('DONE') || upperStatus.includes('DEPLOYED') || upperStatus.includes('COMPLETED') || upperStatus.includes('FIXED') || upperStatus.includes('RESOLVED')) {
+                                                return 'bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20';
+                                            }
+
+                                            // Blue for in-progress states
+                                            if (upperStatus.includes('PROGRESS') || upperStatus.includes('WORKING') || upperStatus.includes('WIP') || upperStatus.includes('ONGOING')) {
+                                                return 'bg-blue-500/10 text-blue-600 dark:text-blue-500 border-blue-500/20';
+                                            }
+
+                                            // Red for blocked/error states
+                                            if (upperStatus.includes('BLOCKED') || upperStatus.includes('ERROR') || upperStatus.includes('FAILED') || upperStatus.includes('ISSUE')) {
+                                                return 'bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20';
+                                            }
+
+                                            // Yellow for review/pending states
+                                            if (upperStatus.includes('REVIEW') || upperStatus.includes('PENDING') || upperStatus.includes('WAITING')) {
+                                                return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-yellow-500/20';
+                                            }
+
+                                            // Purple for testing states
+                                            if (upperStatus.includes('TEST') || upperStatus.includes('QA')) {
+                                                return 'bg-purple-500/10 text-purple-600 dark:text-purple-500 border-purple-500/20';
+                                            }
+
+                                            // Orange for enhancement/feature states
+                                            if (upperStatus.includes('ENH') || upperStatus.includes('FEATURE') || upperStatus.includes('IMPROVEMENT')) {
+                                                return 'bg-orange-500/10 text-orange-600 dark:text-orange-500 border-orange-500/20';
+                                            }
+
+                                            // Default primary color for unknown states
+                                            return 'bg-primary/10 text-primary border-primary/20';
+                                        };
+
+                                        return (
+                                            <div key={i} className="relative pl-12 group animate-in slide-in-from-left-4 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                                                <div className="absolute left-0 top-1 h-6 w-6 rounded-full bg-background border-4 border-primary shadow-sm z-10 transition-transform group-hover:scale-125" />
+                                                <div className="bg-muted/30 border border-border p-5 rounded-2xl group-hover:border-primary/30 transition-all group-hover:bg-muted/50">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <div className="flex items-center gap-2 text-primary">
+                                                            <Calendar className="h-4 w-4" />
+                                                            <span className="text-sm font-black uppercase tracking-widest">{item.date}</span>
+                                                        </div>
+                                                        <span className={`px-3 py-1 text-[10px] font-black rounded uppercase tracking-widest border shadow-xs ${getStatusColor(item.status)}`}>
+                                                            {item.status}
+                                                        </span>
+                                                    </div>
+                                                    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground font-medium" dangerouslySetInnerHTML={{ __html: renderTagsInHtml(item.content) }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

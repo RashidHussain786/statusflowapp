@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { extractStatusUrls, decodeStatus } from '@/lib/encoding';
 import { extractAppNames, generateWeeklyReport, extractAvailableTags, CategoryConfig } from '@/lib/weekly-report';
 import { StatusPayload } from '@/lib/types';
+import { saveDailyStatus } from '@/lib/indexeddb';
 import { Copy, Check, ChevronDown, Settings2, Plus, Trash2, X, GripVertical } from 'lucide-react';
 import { RichTextEditor, EditorRef } from './rich-text-editor';
 
@@ -145,6 +146,17 @@ export function WeeklyReportForm() {
 
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
+
+            // Auto-save to History
+            if (payloads.length > 0) {
+                const payload: StatusPayload = {
+                    v: 2,
+                    name: 'Team Merge Weekly',
+                    date: new Date().toISOString().split('T')[0],
+                    apps: [{ app: `Weekly: ${selectedApp}`, content: editableContent }]
+                };
+                saveDailyStatus(payload, 'weekly').catch(err => console.error('Failed to save weekly snapshot:', err));
+            }
         } catch (err) {
             console.error('Copy failed', err);
         }
@@ -324,6 +336,15 @@ export function WeeklyReportForm() {
                                                 type="text"
                                                 value={config.name}
                                                 onChange={(e) => updateCategory(index, 'name', e.target.value)}
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                                onFocus={(e) => {
+                                                    const parent = e.target.closest('[draggable="true"]');
+                                                    if (parent) parent.setAttribute('draggable', 'false');
+                                                }}
+                                                onBlur={(e) => {
+                                                    const parent = e.target.closest('[draggable="false"]');
+                                                    if (parent) parent.setAttribute('draggable', 'true');
+                                                }}
                                                 placeholder="Category Name (e.g. Enhancement)"
                                                 className="flex-1 px-3 py-1.5 text-sm bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
