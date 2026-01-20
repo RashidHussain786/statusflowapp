@@ -20,9 +20,54 @@ export function encodeStatus(payload: StatusPayload): string {
 }
 
 /**
- * Decode a URL fragment into a StatusPayload
+ * Encode multiple StatusPayloads into a URL fragment
  */
-export function decodeStatus(fragment: string): StatusPayload | null {
+export function encodeMultiStatus(payloads: StatusPayload[]): string {
+  try {
+    const jsonString = JSON.stringify(payloads);
+    const compressed = compressToEncodedURIComponent(jsonString);
+    return `${URL_PREFIX}${compressed}`;
+  } catch (error) {
+    throw new Error('Failed to encode multiple status payloads');
+  }
+}
+
+/**
+ * Split multiple payloads into multiple URL fragments if they exceed the limit
+ */
+export function splitMultiStatusPayloads(payloads: StatusPayload[]): string[] {
+  const urls: string[] = [];
+  let currentBatch: StatusPayload[] = [];
+
+  for (const payload of payloads) {
+    // Check if adding this payload exceeds the limit
+    const testBatch = [...currentBatch, payload];
+    const encoded = encodeMultiStatus(testBatch);
+
+    if (encoded.length > 1800 && currentBatch.length > 0) {
+      // Current batch is full, encode it and start a new one
+      urls.push(encodeMultiStatus(currentBatch));
+      currentBatch = [payload];
+    } else {
+      currentBatch = testBatch;
+    }
+  }
+
+  // Add the last batch
+  if (currentBatch.length > 0) {
+    urls.push(encodeMultiStatus(currentBatch));
+  }
+
+  // Note: This simple chunking works because individual payloads are already 
+  // processed. If a single payload is somehow > 1800 (rare from history), 
+  // it will still be > 1800 here. 
+  return urls;
+}
+
+/**
+ * Decode a URL fragment into a StatusPayload or an array of them
+ */
+export function decodeStatus(fragment: string): StatusPayload | StatusPayload[] | null {
   try {
     if (!fragment.startsWith(URL_PREFIX)) {
       return null;
@@ -35,30 +80,22 @@ export function decodeStatus(fragment: string): StatusPayload | null {
       return null;
     }
 
-    const payload = JSON.parse(jsonString) as StatusPayload;
+    const data = JSON.parse(jsonString);
 
-    // Handle version 1 (backward compatibility)
-    if (payload.v === 1) {
-      if (!payload.name || !payload.date || !Array.isArray(payload.apps)) {
-        return null;
-      }
-      // Convert v1 to v2 format
-      return {
-        ...payload,
-        v: 2 as const,
-        customTags: []
-      };
+    if (Array.isArray(data)) {
+      return data as StatusPayload[];
     }
 
-    // Handle version 2
-    if (payload.v === 2) {
+    const payload = data as StatusPayload;
+
+    // Handle versions
+    if (payload.v === 1 || payload.v === 2) {
       if (!payload.name || !payload.date || !Array.isArray(payload.apps)) {
         return null;
       }
       return payload;
     }
 
-    // Invalid version
     return null;
   } catch (error) {
     console.warn('Failed to decode status payload:', error);
@@ -104,29 +141,34 @@ export function decodeMultipleStatuses(fragments: string[]): NormalizedEntry[] {
 
   // First pass: collect all parts
   for (const fragment of fragments) {
-    const payload = decodeStatus(fragment);
-    if (!payload) continue;
+    const decoded = decodeStatus(fragment);
+    if (!decoded) continue;
 
-    for (const app of payload.apps) {
-      const baseAppName = app.app.replace(/ \[Part \d+\]$/, ''); // Remove part suffix
-      const isPart = app.app.includes('[Part ');
-      const key = `${payload.name.toLowerCase().trim()}-${baseAppName.toLowerCase().trim()}-${payload.date}`;
+    // Handle single or multi
+    const payloads = Array.isArray(decoded) ? decoded : [decoded];
 
-      if (isPart) {
-        // This is a part of a larger application
-        if (!appParts.has(key)) {
-          appParts.set(key, []);
-        }
-        appParts.get(key)!.push(app.content);
-      } else {
-        // Regular application
-        if (!seen.has(key)) {
-          seen.add(key);
-          entries.push({
-            name: payload.name,
-            app: app.app,
-            content: app.content,
-          });
+    for (const payload of payloads) {
+      for (const app of payload.apps) {
+        const baseAppName = app.app.replace(/ \[Part \d+\]$/, ''); // Remove part suffix
+        const isPart = app.app.includes('[Part ');
+        const key = `${payload.name.toLowerCase().trim()}-${baseAppName.toLowerCase().trim()}-${payload.date}`;
+
+        if (isPart) {
+          // This is a part of a larger application
+          if (!appParts.has(key)) {
+            appParts.set(key, []);
+          }
+          appParts.get(key)!.push(app.content);
+        } else {
+          // Regular application
+          if (!seen.has(key)) {
+            seen.add(key);
+            entries.push({
+              name: payload.name,
+              app: app.app,
+              content: app.content,
+            });
+          }
         }
       }
     }

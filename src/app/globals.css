@@ -1,60 +1,73 @@
 @import "tailwindcss";
 
 :root {
-  /* Production Light Theme - Professional & Neutral */
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
+  /* Refreshing Light Theme - Cyan & Lavender */
+  --background: 183 51% 98%;
+  /* Very light cyan tint */
+  --foreground: 183 50% 10%;
+  /* Dark cyan for text */
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  /* Pure white cards */
+  --card-foreground: 183 50% 10%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 5.9% 10%;
+  --popover-foreground: 183 50% 10%;
+  --primary: 183 50% 35%;
+  /* Mid-dark cyan for buttons */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 183 51% 87%;
+  /* The provided #cdedef */
+  --secondary-foreground: 183 50% 20%;
+  --muted: 183 51% 94%;
+  /* Light cyan for secondary backgrounds */
+  --muted-foreground: 183 30% 40%;
+  --accent: 240 67% 94%;
+  /* Lavender #e6e6fa */
+  --accent-foreground: 240 50% 20%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 183 40% 85%;
+  --input: 183 40% 85%;
+  --ring: 183 50% 35%;
   --radius: 0.5rem;
-  --chart-1: 240 5.9% 10%;
-  --chart-2: 240 3.7% 15.9%;
-  --chart-3: 240 4.8% 95.9%;
-  --chart-4: 240 3.8% 46.1%;
-  --chart-5: 240 5.9% 90%;
+  --chart-1: 183 50% 35%;
+  --chart-2: 183 51% 87%;
+  --chart-3: 240 67% 94%;
+  --chart-4: 183 30% 40%;
+  --chart-5: 183 40% 85%;
 }
 
 .dark {
-  /* Production Dark Theme - Professional Gray Scale */
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 240 5.9% 10%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
+  /* Midnight Cyan Premium Dark Theme */
+  --background: 183 60% 3%;
+  /* Deep midnight cyan */
+  --foreground: 183 20% 98%;
+  /* Crisp off-white cyan */
+  --card: 182 50% 6%;
+  /* Slightly lighter than background */
+  --card-foreground: 183 20% 98%;
+  --popover: 182 50% 8%;
+  --popover-foreground: 183 20% 98%;
+  --primary: 183 50% 65%;
+  /* Bright cyan for buttons */
+  --primary-foreground: 183 60% 5%;
+  --secondary: 183 40% 15%;
+  /* Muted dark cyan */
+  --secondary-foreground: 183 20% 95%;
+  --muted: 183 40% 12%;
+  --muted-foreground: 183 20% 60%;
+  --accent: 240 30% 20%;
+  /* Deep lavender contrast */
+  --accent-foreground: 240 20% 95%;
+  --destructive: 0 62% 35%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --ring: 240 4.9% 83.9%;
-  --chart-1: 0 0% 98%;
-  --chart-2: 240 5% 64.9%;
-  --chart-3: 240 3.7% 15.9%;
-  --chart-4: 240 4.8% 95.9%;
-  --chart-5: 240 5.9% 90%;
+  --border: 183 30% 15%;
+  --input: 183 30% 15%;
+  --ring: 183 50% 65%;
+  --chart-1: 183 50% 65%;
+  --chart-2: 183 40% 15%;
+  --chart-3: 240 30% 20%;
+  --chart-4: 183 20% 60%;
+  --chart-5: 183 30% 15%;
 }
 
 @theme inline {

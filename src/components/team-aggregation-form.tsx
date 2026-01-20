@@ -194,7 +194,7 @@ export function TeamAggregationForm() {
             <div>
               <p className="font-medium text-foreground mb-1">📋 Copy Options:</p>
               <ul className="space-y-1 ml-4">
-                <li><strong>"Copy Report":</strong> Ready-to-use formatted text perfect for emails and documents</li>
+                <li><strong>&quot;Copy Report&quot;:</strong> Ready-to-use formatted text perfect for emails and documents</li>
               </ul>
             </div>
 

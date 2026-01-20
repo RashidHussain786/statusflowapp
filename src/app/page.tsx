@@ -2,32 +2,13 @@
 
 import Link from 'next/link';
 import { ArrowRight, Users, FileText, Shield, Zap, Link2 } from 'lucide-react';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { MainNav } from '@/components/main-nav';
 import { Footer } from '@/components/footer';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50">
-        <div className="container mx-auto px-4 2xl:px-6 py-4 2xl:py-6 max-w-5xl 2xl:max-w-7xl">
-          <div className="flex items-center justify-between">
-            <Link className="flex items-center gap-3" href="/">
-              <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg">
-                <span className="text-primary-foreground font-bold text-xl">S</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">StatusFlowApp</h1>
-                <p className="text-sm text-muted-foreground">Privacy-First Team Status Generator</p>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-6">
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
-      </header>
+      <MainNav />
 
       <main className="container mx-auto px-4 2xl:px-6 py-12 2xl:py-16 max-w-4xl">
         {/* Hero Section */}

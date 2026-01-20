@@ -60,7 +60,8 @@ export function WeeklyReportForm() {
         const urls = extractStatusUrls(inputText);
         const decoded = urls
             .map(url => decodeStatus(url))
-            .filter((p): p is StatusPayload => p !== null);
+            .filter((p): p is StatusPayload | StatusPayload[] => p !== null)
+            .flatMap(p => Array.isArray(p) ? p : [p]);
 
         setPayloads(decoded);
         setEditableContent('');
@@ -157,7 +158,7 @@ export function WeeklyReportForm() {
         setConfigs(configs.filter((_, i) => i !== index));
     };
 
-    const updateCategory = (index: number, field: keyof CategoryConfig, value: any) => {
+    const updateCategory = (index: number, field: keyof CategoryConfig, value: string | string[]) => {
         const newConfigs = [...configs];
         newConfigs[index] = { ...newConfigs[index], [field]: value };
         setConfigs(newConfigs);
