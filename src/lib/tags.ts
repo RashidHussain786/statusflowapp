@@ -133,14 +133,13 @@ export const saveCustomTags = (tags: StatusTag[]): void => {
 
 // Helper to convert hex to rgba
 export function hexToRgba(hex: string, alpha: number): string {
-  let c: any;
   if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
-    c = hex.substring(1).split('');
+    let c = hex.substring(1).split('');
     if (c.length === 3) {
       c = [c[0], c[0], c[1], c[1], c[2], c[2]];
     }
-    c = '0x' + c.join('');
-    return `rgba(${[(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',')},${alpha})`;
+    const val = parseInt(c.join(''), 16);
+    return `rgba(${(val >> 16) & 255}, ${(val >> 8) & 255}, ${val & 255}, ${alpha})`;
   }
   // fallback for non-hex colors
   if (hex.startsWith('rgb')) {
@@ -187,3 +186,36 @@ export const isTagLabelTaken = (label: string): boolean => {
   const allTags = getAllTags();
   return allTags.some(tag => tag.label.toLowerCase() === label.toLowerCase());
 };
+
+/**
+ * Shared logic for styling tags consistently across editor and static views.
+ */
+export function getTagStyles(tagLabel: string) {
+  const label = tagLabel.toUpperCase();
+  const tag = getTagByLabel(label);
+
+  if (tag) {
+    return { color: tag.color, fontWeight: '600' };
+  }
+
+  // Consistent random color for unknown tags
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) {
+    hash = label.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  const color = `hsl(${hue}, 70%, 30%)`;
+  return { color, fontWeight: '600' };
+}
+
+/**
+ * Renders bracketed tags (e.g. [DONE]) with colors in static HTML strings.
+ */
+export function renderTagsInHtml(html: string): string {
+  if (!html) return '';
+
+  return html.replace(/\[([A-Z\s]+)\]/g, (match, tagLabel) => {
+    const styles = getTagStyles(tagLabel);
+    return `<span class="visual-tag" style="color: ${styles.color}; font-weight: ${styles.fontWeight}; margin-left: 0.2rem;">[${tagLabel}]</span>`;
+  });
+}

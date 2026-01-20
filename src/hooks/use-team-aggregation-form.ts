@@ -2,6 +2,8 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { extractStatusUrls, decodeMultipleStatuses, URL_PREFIX } from '../lib/encoding';
 import { MergeMode, NormalizedEntry } from '../lib/types';
 import { EditorRef } from '../components/rich-text-editor';
+import { saveDailyStatus } from '../lib/indexeddb';
+import { StatusPayload } from '../lib/types';
 
 export function useTeamAggregationForm() {
   const [urlsText, setUrlsText] = useState('');
@@ -234,6 +236,16 @@ export function useTeamAggregationForm() {
         if (successful) {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
+
+          // Auto-save to History
+          const payload: StatusPayload = {
+            v: 2,
+            name: selectedApp === 'all' ? 'Team Merge Daily' : `${selectedApp} (Team Daily)`,
+            date: new Date().toISOString().split('T')[0],
+            apps: [{ app: 'Team Merge', content: editableContent }]
+          };
+          saveDailyStatus(payload, 'team').catch(err => console.error('Failed to save team snapshot:', err));
+
           return;
         }
       }

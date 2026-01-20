@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { extractStatusUrls, decodeStatus } from '@/lib/encoding';
 import { extractAppNames, generateWeeklyReport, extractAvailableTags, CategoryConfig } from '@/lib/weekly-report';
 import { StatusPayload } from '@/lib/types';
+import { saveDailyStatus } from '@/lib/indexeddb';
 import { Copy, Check, ChevronDown, Settings2, Plus, Trash2, X, GripVertical } from 'lucide-react';
 import { RichTextEditor, EditorRef } from './rich-text-editor';
 
@@ -60,7 +61,8 @@ export function WeeklyReportForm() {
         const urls = extractStatusUrls(inputText);
         const decoded = urls
             .map(url => decodeStatus(url))
-            .filter((p): p is StatusPayload => p !== null);
+            .filter((p): p is StatusPayload | StatusPayload[] => p !== null)
+            .flatMap(p => Array.isArray(p) ? p : [p]);
 
         setPayloads(decoded);
         setEditableContent('');
@@ -144,6 +146,17 @@ export function WeeklyReportForm() {
 
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
+
+            // Auto-save to History
+            if (payloads.length > 0) {
+                const payload: StatusPayload = {
+                    v: 2,
+                    name: 'Team Merge Weekly',
+                    date: new Date().toISOString().split('T')[0],
+                    apps: [{ app: `Weekly: ${selectedApp}`, content: editableContent }]
+                };
+                saveDailyStatus(payload, 'weekly').catch(err => console.error('Failed to save weekly snapshot:', err));
+            }
         } catch (err) {
             console.error('Copy failed', err);
         }
@@ -157,7 +170,7 @@ export function WeeklyReportForm() {
         setConfigs(configs.filter((_, i) => i !== index));
     };
 
-    const updateCategory = (index: number, field: keyof CategoryConfig, value: any) => {
+    const updateCategory = (index: number, field: keyof CategoryConfig, value: string | string[]) => {
         const newConfigs = [...configs];
         newConfigs[index] = { ...newConfigs[index], [field]: value };
         setConfigs(newConfigs);
@@ -323,6 +336,15 @@ export function WeeklyReportForm() {
                                                 type="text"
                                                 value={config.name}
                                                 onChange={(e) => updateCategory(index, 'name', e.target.value)}
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                                onFocus={(e) => {
+                                                    const parent = e.target.closest('[draggable="true"]');
+                                                    if (parent) parent.setAttribute('draggable', 'false');
+                                                }}
+                                                onBlur={(e) => {
+                                                    const parent = e.target.closest('[draggable="false"]');
+                                                    if (parent) parent.setAttribute('draggable', 'true');
+                                                }}
                                                 placeholder="Category Name (e.g. Enhancement)"
                                                 className="flex-1 px-3 py-1.5 text-sm bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
